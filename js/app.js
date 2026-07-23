@@ -1,4 +1,4 @@
-/* Riddim — drop in drum tracks, keep them organized, loop a groove. */
+/* Riddim Repo — drop in drum tracks, keep them organized, loop a groove. */
 
 (() => {
   'use strict';
@@ -7,7 +7,6 @@
 
   let tracks = [];            // metadata records (no blobs)
   let currentId = null;       // id of the track loaded in the player
-  let activeTag = null;       // tag filter
   let editingId = null;       // track being edited in the dialog
   let currentUrl = null;      // object URL of the loaded blob
 
@@ -28,7 +27,6 @@
     emptyState: $('empty-state'),
     search: $('search'),
     sort: $('sort'),
-    tagBar: $('tag-bar'),
     sectionHead: $('section-head'),
     trackCount: $('track-count'),
     addBtn: $('add-btn'),
@@ -50,7 +48,6 @@
     editForm: $('edit-form'),
     editName: $('edit-name'),
     editBpm: $('edit-bpm'),
-    editTags: $('edit-tags'),
     editDelete: $('edit-delete'),
     editCancel: $('edit-cancel'),
     tapTempo: $('tap-tempo'),
@@ -66,9 +63,11 @@
     return `${m}:${String(s).padStart(2, '0')}`;
   }
 
-  function formatSize(bytes) {
-    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    return Math.round(bytes / 1024) + ' KB';
+  function formatDate(ts) {
+    const d = new Date(ts);
+    const opts = { month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString(undefined, opts);
   }
 
   function cleanName(filename) {
@@ -95,7 +94,6 @@
       const start = i * bucketSize;
       const end = Math.min(start + bucketSize, channel.length);
       let max = 0;
-      // Sample within the bucket (stride keeps huge files fast).
       const stride = Math.max(1, Math.floor((end - start) / 64));
       for (let j = start; j < end; j += stride) {
         const v = Math.abs(channel[j]);
@@ -140,7 +138,7 @@
   // Card waveforms sit on bright color blocks — dark ink bars.
   const CARD_WAVE_COLORS = { base: 'rgba(6, 0, 0, 0.35)', played: 'rgba(6, 0, 0, 0.35)' };
 
-  // Stable color assignment per track (yellow/orange/teal/pink cycle).
+  // Stable color assignment per track (yellow/orange/green/pink cycle).
   function cardColorClass(id) {
     let h = 0;
     for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -177,7 +175,7 @@
       duration,
       peaks,
       bpm: null,
-      tags: [],
+      percussion: false,
       addedAt: Date.now(),
       blob: new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }),
     };
@@ -198,13 +196,31 @@
       const blob = await res.blob();
       const file = new File([blob], 'Zuchinni Dryne.wav', { type: 'audio/wav' });
       const meta = await importOneFile(file);
-      const patched = await RiddimDB.patch(meta.id, { bpm: 130, tags: ['sample', 'breaks'] });
+      const patched = await RiddimDB.patch(meta.id, { bpm: 65 });
       const idx = tracks.findIndex(t => t.id === meta.id);
       if (idx !== -1) tracks[idx] = patched;
       localStorage.setItem(SEED_FLAG, '1');
       render();
     } catch (err) {
       console.warn('Sample seed skipped:', err);
+    }
+  }
+
+  /** One-time fix: the bundled groove was first tagged 130 BPM; it's 65. */
+  const BPM_FIX_FLAG = 'riddim-zd-bpm65';
+  async function fixSeededBpm() {
+    if (localStorage.getItem(BPM_FIX_FLAG)) return;
+    try {
+      const zd = tracks.find(t => t.fileName === 'Zuchinni Dryne.wav' && t.bpm === 130);
+      if (zd) {
+        const patched = await RiddimDB.patch(zd.id, { bpm: 65 });
+        const idx = tracks.findIndex(t => t.id === zd.id);
+        if (idx !== -1) tracks[idx] = patched;
+        render();
+      }
+      localStorage.setItem(BPM_FIX_FLAG, '1');
+    } catch (err) {
+      console.warn('BPM fix skipped:', err);
     }
   }
 
@@ -241,9 +257,8 @@
   function visibleTracks() {
     const query = els.search.value.trim().toLowerCase();
     let list = tracks.filter(t => {
-      if (activeTag && !(t.tags || []).includes(activeTag)) return false;
       if (!query) return true;
-      const haystack = (t.name + ' ' + (t.tags || []).join(' ') + ' ' + (t.bpm || '')).toLowerCase();
+      const haystack = (t.name + ' ' + (t.bpm || '')).toLowerCase();
       return query.split(/\s+/).every(word => haystack.includes(word));
     });
 
@@ -260,29 +275,6 @@
       return va < vb ? -sign : va > vb ? sign : 0;
     });
     return list;
-  }
-
-  function renderTagBar() {
-    const counts = new Map();
-    for (const t of tracks) {
-      for (const tag of t.tags || []) counts.set(tag, (counts.get(tag) || 0) + 1);
-    }
-    if (activeTag && !counts.has(activeTag)) activeTag = null;
-
-    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    els.tagBar.hidden = sorted.length === 0;
-    els.tagBar.innerHTML = '';
-    for (const [tag, count] of sorted) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'tag-chip' + (tag === activeTag ? ' active' : '');
-      chip.textContent = `${tag} · ${count}`;
-      chip.addEventListener('click', () => {
-        activeTag = activeTag === tag ? null : tag;
-        render();
-      });
-      els.tagBar.appendChild(chip);
-    }
   }
 
   function renderLibrary() {
@@ -312,23 +304,24 @@
       name.className = 'track-name';
       name.textContent = t.name;
       const sub = document.createElement('div');
-      sub.className = 'track-sub';
+      sub.className = 'track-pills';
       if (t.bpm) {
         const bpm = document.createElement('span');
-        bpm.className = 'track-bpm';
+        bpm.className = 'track-pill track-bpm';
         bpm.textContent = Math.round(t.bpm * 10) / 10 + ' BPM';
         sub.appendChild(bpm);
       }
-      const info = document.createElement('span');
-      info.textContent = `${formatTime(t.duration)} · ${formatSize(t.size)}`;
-      sub.appendChild(info);
+      const date = document.createElement('span');
+      date.className = 'track-pill track-date';
+      date.textContent = 'Added ' + formatDate(t.addedAt);
+      sub.appendChild(date);
       titles.append(name, sub);
 
       const editBtn = document.createElement('button');
       editBtn.type = 'button';
       editBtn.className = 'track-edit';
       editBtn.textContent = 'Edit';
-      editBtn.title = 'Edit name, BPM, tags';
+      editBtn.title = 'Edit name and BPM';
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
       head.append(playBtn, titles, editBtn);
@@ -341,17 +334,27 @@
         requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, CARD_WAVE_COLORS));
       }
 
-      if (t.tags && t.tags.length) {
-        const tagsEl = document.createElement('div');
-        tagsEl.className = 'track-tags';
-        for (const tag of t.tags) {
-          const chip = document.createElement('span');
-          chip.className = 'track-tag';
-          chip.textContent = tag;
-          tagsEl.appendChild(chip);
+      const percLabel = document.createElement('label');
+      percLabel.className = 'perc-check';
+      const percBox = document.createElement('input');
+      percBox.type = 'checkbox';
+      percBox.checked = !!t.percussion;
+      const percText = document.createElement('span');
+      percText.textContent = 'Percussion';
+      percLabel.append(percBox, percText);
+      percLabel.addEventListener('click', e => e.stopPropagation());
+      percBox.addEventListener('change', async () => {
+        try {
+          const patched = await RiddimDB.patch(t.id, { percussion: percBox.checked });
+          const idx = tracks.findIndex(x => x.id === t.id);
+          if (idx !== -1) tracks[idx] = patched;
+        } catch (err) {
+          console.error(err);
+          percBox.checked = !percBox.checked;
+          toast('Could not save');
         }
-        card.appendChild(tagsEl);
-      }
+      });
+      card.appendChild(percLabel);
 
       card.addEventListener('click', event => {
         if (event.target === editBtn) return;
@@ -368,7 +371,6 @@
   }
 
   function render() {
-    renderTagBar();
     renderLibrary();
   }
 
@@ -434,7 +436,7 @@
       els.playerMeta.appendChild(bpm);
     }
     els.playerMeta.appendChild(
-      document.createTextNode((t.tags || []).join(' · ') || t.fileName || '')
+      document.createTextNode('Added ' + formatDate(t.addedAt))
     );
     els.timeTotal.textContent = formatTime(t.duration || audio.duration);
   }
@@ -514,9 +516,8 @@
     editingId = id;
     els.editName.value = t.name;
     els.editBpm.value = t.bpm || '';
-    els.editTags.value = (t.tags || []).join(', ');
     tapTimes.length = 0;
-    els.tapTempo.textContent = 'Tap tempo';
+    els.tapTempo.textContent = 'Tap Tempo';
     els.editDialog.showModal();
   }
 
@@ -524,14 +525,9 @@
     if (!editingId) return;
     const name = els.editName.value.trim();
     const bpm = parseFloat(els.editBpm.value) || null;
-    const tags = els.editTags.value
-      .split(',')
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean)
-      .filter((tag, i, arr) => arr.indexOf(tag) === i);
 
     try {
-      const meta = await RiddimDB.patch(editingId, { name, bpm, tags });
+      const meta = await RiddimDB.patch(editingId, { name, bpm });
       const idx = tracks.findIndex(t => t.id === editingId);
       if (idx !== -1) tracks[idx] = meta;
       render();
@@ -676,6 +672,7 @@
     }
     render();
     requestAnimationFrame(playerFrame);
+    fixSeededBpm();
     seedSampleTrack();
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
