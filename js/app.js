@@ -32,8 +32,6 @@
     dropOverlay: $('drop-overlay'),
     player: $('player'),
     playerWave: $('player-wave'),
-    playerTitle: $('player-title'),
-    playerMeta: $('player-meta'),
     timeCurrent: $('time-current'),
     timeTotal: $('time-total'),
     playBtn: $('play-btn'),
@@ -149,7 +147,7 @@
   // ---------- Categories ----------
 
   const CATEGORIES = [
-    { key: 'drum', label: 'Drum Tracks' },
+    { key: 'drum', label: 'Drums' },
     { key: 'riddim', label: 'Riddims' },
     { key: 'take', label: 'Takes' },
   ];
@@ -490,17 +488,6 @@
   function updatePlayerHeader() {
     const t = currentTrack();
     if (!t) return;
-    els.playerTitle.textContent = t.name;
-    els.playerMeta.innerHTML = '';
-    if (t.bpm) {
-      const bpm = document.createElement('span');
-      bpm.className = 'track-bpm';
-      bpm.textContent = Math.round(t.bpm * 10) / 10 + ' BPM';
-      els.playerMeta.appendChild(bpm);
-    }
-    els.playerMeta.appendChild(
-      document.createTextNode('Added ' + formatDate(t.addedAt))
-    );
     els.timeTotal.textContent = formatTime(t.duration || audio.duration);
   }
 
