@@ -288,7 +288,7 @@
       const editBtn = document.createElement('button');
       editBtn.type = 'button';
       editBtn.className = 'track-edit';
-      editBtn.textContent = '✎';
+      editBtn.textContent = 'Edit';
       editBtn.title = 'Edit name, BPM, tags';
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
