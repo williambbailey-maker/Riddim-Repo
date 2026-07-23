@@ -845,6 +845,13 @@ input, select { font: inherit; }
 #auth-form input::placeholder { color: var(--muted-fg); }
 #auth-form input:focus { outline: none; border-color: var(--yellow); }
 
+.auth-passcode {
+  text-align: center;
+  font-size: 1.5rem !important;
+  letter-spacing: 0.4em;
+  font-weight: 700;
+}
+
 .auth-submit { padding: 14px 22px; font-size: 1rem; }
 
 .auth-error {

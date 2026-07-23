@@ -56,8 +56,7 @@
     volume: $('volume'),
     authScreen: $('auth-screen'),
     authForm: $('auth-form'),
-    authEmail: $('auth-email'),
-    authPassword: $('auth-password'),
+    authPasscode: $('auth-passcode'),
     authError: $('auth-error'),
     editDialog: $('edit-dialog'),
     editForm: $('edit-form'),
@@ -890,27 +889,31 @@
     els.logoutBtn.hidden = !s;
   }
 
+  // Passcode login: the code unlocks a single shared library account.
   els.authForm.addEventListener('submit', async event => {
     event.preventDefault();
     els.authError.hidden = true;
     const btn = els.authForm.querySelector('.auth-submit');
     btn.disabled = true;
-    btn.textContent = 'Logging in…';
+    btn.textContent = 'Checking…';
     try {
+      const code = els.authPasscode.value.trim();
       const { data, error } = await sb.auth.signInWithPassword({
-        email: els.authEmail.value.trim(),
-        password: els.authPassword.value,
+        email: 'door@riddimrepo.local',
+        password: `riddim-door-${code}-zx7`,
       });
-      if (error) throw error;
+      if (error) throw new Error('Wrong passcode');
       setAuthed(data.session);
       await bootLibrary();
     } catch (err) {
       console.error(err);
-      els.authError.textContent = err.message || 'Login failed';
+      els.authError.textContent = err.message || 'Wrong passcode';
       els.authError.hidden = false;
+      els.authPasscode.value = '';
+      els.authPasscode.focus();
     }
     btn.disabled = false;
-    btn.textContent = 'Log In';
+    btn.textContent = 'Enter';
   });
 
   els.logoutBtn.addEventListener('click', async () => {

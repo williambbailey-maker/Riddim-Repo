@@ -99,11 +99,11 @@
   <div id="auth-screen" class="auth-screen" hidden>
     <div class="auth-card">
       <h2 class="wordmark auth-logo"><span>R</span><span>i</span><span>d</span><span>d</span><span>i</span><span>m</span>&nbsp;<span>R</span><span>e</span><span>p</span><span>o</span></h2>
-      <p class="auth-sub">Log in to your groove library</p>
+      <p class="auth-sub">Enter the passcode</p>
       <form id="auth-form">
-        <input id="auth-email" type="email" placeholder="Email" required autocomplete="email">
-        <input id="auth-password" type="password" placeholder="Password" required autocomplete="current-password">
-        <button class="btn-pill btn-orange auth-submit" type="submit">Log In</button>
+        <input id="auth-passcode" class="auth-passcode" type="password" inputmode="numeric" pattern="[0-9]*"
+               placeholder="•••" maxlength="8" required autocomplete="off">
+        <button class="btn-pill btn-orange auth-submit" type="submit">Enter</button>
         <div id="auth-error" class="auth-error" hidden></div>
       </form>
     </div>
