@@ -40,8 +40,6 @@
     loopBtn: $('loop-btn'),
     rate: $('rate'),
     volume: $('volume'),
-    catDialog: $('cat-dialog'),
-    catCancel: $('cat-cancel'),
     editDialog: $('edit-dialog'),
     editForm: $('edit-form'),
     editName: $('edit-name'),
@@ -233,36 +231,21 @@
     }
   }
 
-  let pendingFiles = null;
-  let pendingSkipped = 0;
-
-  /** Step 1: ask what kind of upload this is. */
-  function importFiles(fileList) {
+  /** New uploads land in Drums; re-categorize via Edit to move them. */
+  async function importFiles(fileList) {
     const files = Array.from(fileList).filter(isAudioFile);
     const skipped = fileList.length - files.length;
     if (!files.length) {
       toast('No audio files found — drop .wav or .mp3 tracks');
       return;
     }
-    pendingFiles = files;
-    pendingSkipped = skipped;
-    els.catDialog.showModal();
-  }
-
-  /** Step 2: import the pending batch under the chosen category. */
-  async function runImport(category) {
-    const files = pendingFiles || [];
-    const skipped = pendingSkipped;
-    pendingFiles = null;
-    pendingSkipped = 0;
-    if (!files.length) return;
 
     toast(`Importing ${files.length} track${files.length > 1 ? 's' : ''}…`);
     let imported = 0;
 
     for (const file of files) {
       try {
-        await importOneFile(file, category);
+        await importOneFile(file, 'drum');
         imported++;
       } catch (err) {
         console.error('Import failed:', file.name, err);
@@ -276,18 +259,6 @@
             (skipped > 0 ? ` (skipped ${skipped} non-audio)` : ''));
     }
   }
-
-  els.catDialog.querySelectorAll('[data-cat]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      els.catDialog.close();
-      runImport(btn.dataset.cat);
-    });
-  });
-  els.catCancel.addEventListener('click', () => {
-    pendingFiles = null;
-    els.catDialog.close();
-  });
-  els.catDialog.addEventListener('cancel', () => { pendingFiles = null; });
 
   // ---------- Library rendering ----------
 
@@ -396,27 +367,30 @@
         requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, CARD_WAVE_COLORS));
       }
 
-      const percLabel = document.createElement('label');
-      percLabel.className = 'perc-check';
-      const percBox = document.createElement('input');
-      percBox.type = 'checkbox';
-      percBox.checked = !!t.percussion;
-      const percText = document.createElement('span');
-      percText.textContent = 'Percussion';
-      percLabel.append(percBox, percText);
-      percLabel.addEventListener('click', e => e.stopPropagation());
-      percBox.addEventListener('change', async () => {
-        try {
-          const patched = await RiddimDB.patch(t.id, { percussion: percBox.checked });
-          const idx = tracks.findIndex(x => x.id === t.id);
-          if (idx !== -1) tracks[idx] = patched;
-        } catch (err) {
-          console.error(err);
-          percBox.checked = !percBox.checked;
-          toast('Could not save');
-        }
-      });
-      card.appendChild(percLabel);
+      // Percussion flag only applies to drum tracks.
+      if (trackCategory(t) === 'drum') {
+        const percLabel = document.createElement('label');
+        percLabel.className = 'perc-check';
+        const percBox = document.createElement('input');
+        percBox.type = 'checkbox';
+        percBox.checked = !!t.percussion;
+        const percText = document.createElement('span');
+        percText.textContent = 'Percussion';
+        percLabel.append(percBox, percText);
+        percLabel.addEventListener('click', e => e.stopPropagation());
+        percBox.addEventListener('change', async () => {
+          try {
+            const patched = await RiddimDB.patch(t.id, { percussion: percBox.checked });
+            const idx = tracks.findIndex(x => x.id === t.id);
+            if (idx !== -1) tracks[idx] = patched;
+          } catch (err) {
+            console.error(err);
+            percBox.checked = !percBox.checked;
+            toast('Could not save');
+          }
+        });
+        card.appendChild(percLabel);
+      }
 
       card.addEventListener('click', event => {
         if (event.target === editBtn) return;
@@ -687,7 +661,7 @@
 
   window.addEventListener('keydown', event => {
     const inField = /^(input|select|textarea)$/i.test(event.target.tagName) ||
-                    els.editDialog.open || els.catDialog.open;
+                    els.editDialog.open;
     if (inField) return;
     if (event.code === 'Space') {
       event.preventDefault();
