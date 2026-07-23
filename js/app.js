@@ -67,6 +67,12 @@
     return d.toLocaleDateString(undefined, opts);
   }
 
+  function formatStamp(ts) {
+    const d = new Date(ts);
+    return formatDate(ts) + ', ' +
+           d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
   function cleanName(filename) {
     return filename.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
   }
@@ -322,6 +328,9 @@
       card.className = 'track-card ' + cardColorClass(t.id) + (t.id === currentId ? ' playing' : '');
       card.dataset.id = t.id;
 
+      const front = document.createElement('div');
+      front.className = 'card-front';
+
       const head = document.createElement('div');
       head.className = 'track-head';
 
@@ -358,12 +367,12 @@
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
       head.append(playBtn, titles, editBtn);
-      card.appendChild(head);
+      front.appendChild(head);
 
       if (t.peaks) {
         const canvas = document.createElement('canvas');
         canvas.className = 'track-wave';
-        card.appendChild(canvas);
+        front.appendChild(canvas);
         requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, CARD_WAVE_COLORS));
       }
 
@@ -389,11 +398,101 @@
             toast('Could not save');
           }
         });
-        card.appendChild(percLabel);
+        front.appendChild(percLabel);
       }
 
+      // Pencil: flip the card over to its notes side.
+      const noteBtn = document.createElement('button');
+      noteBtn.type = 'button';
+      noteBtn.className = 'note-btn';
+      noteBtn.title = 'Notes';
+      noteBtn.setAttribute('aria-label', 'Notes for ' + t.name);
+      noteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>';
+      front.appendChild(noteBtn);
+
+      // Back of the card: saved notes + entry box.
+      const back = document.createElement('div');
+      back.className = 'card-back';
+
+      const noteHead = document.createElement('div');
+      noteHead.className = 'note-head';
+      const noteTitle = document.createElement('h4');
+      noteTitle.textContent = 'Notes';
+      const noteClose = document.createElement('button');
+      noteClose.type = 'button';
+      noteClose.className = 'note-close';
+      noteClose.textContent = '✕';
+      noteClose.setAttribute('aria-label', 'Close notes');
+      noteHead.append(noteTitle, noteClose);
+
+      const noteList = document.createElement('div');
+      noteList.className = 'note-list';
+      function noteEntryEl(n) {
+        const entry = document.createElement('div');
+        entry.className = 'note-entry';
+        const stamp = document.createElement('div');
+        stamp.className = 'note-stamp';
+        stamp.textContent = formatStamp(n.at);
+        const body = document.createElement('div');
+        body.className = 'note-text';
+        body.textContent = n.text;
+        entry.append(stamp, body);
+        return entry;
+      }
+      for (const n of [...(t.notes || [])].reverse()) noteList.appendChild(noteEntryEl(n));
+
+      const noteRow = document.createElement('div');
+      noteRow.className = 'note-row';
+      const noteInput = document.createElement('textarea');
+      noteInput.className = 'note-input';
+      noteInput.rows = 2;
+      noteInput.placeholder = 'Write a note…';
+      const noteSave = document.createElement('button');
+      noteSave.type = 'button';
+      noteSave.className = 'note-save';
+      noteSave.textContent = 'Save';
+      noteRow.append(noteInput, noteSave);
+
+      back.append(noteHead, noteList, noteRow);
+      back.addEventListener('click', e => e.stopPropagation());
+
+      noteBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        card.classList.add('flipped');
+        noteInput.focus();
+      });
+      noteClose.addEventListener('click', () => card.classList.remove('flipped'));
+
+      async function saveNote() {
+        const text = noteInput.value.trim();
+        if (!text) return;
+        const entry = { text, at: Date.now() };
+        try {
+          const existing = tracks.find(x => x.id === t.id);
+          const notes = [...((existing && existing.notes) || []), entry];
+          const patched = await RiddimDB.patch(t.id, { notes });
+          const idx = tracks.findIndex(x => x.id === t.id);
+          if (idx !== -1) tracks[idx] = patched;
+          noteList.prepend(noteEntryEl(entry));
+          noteInput.value = '';
+        } catch (err) {
+          console.error(err);
+          toast('Could not save note');
+        }
+      }
+      noteSave.addEventListener('click', saveNote);
+      noteInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          saveNote();
+        }
+      });
+
+      card.append(front, back);
+
       card.addEventListener('click', event => {
-        if (event.target === editBtn) return;
+        if (card.classList.contains('flipped')) return;
+        if (event.target === editBtn || event.target === noteBtn) return;
         if (t.id === currentId) {
           togglePlay();
         } else {
