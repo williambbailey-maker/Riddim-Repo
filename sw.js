@@ -1,8 +1,8 @@
-/* Riddim service worker — precaches the app shell so the library
-   opens instantly and works fully offline. Audio files live in
+/* Riddim Repo service worker — precaches the app shell so the library
+   opens instantly and works offline. Audio blobs are cached in
    IndexedDB, so they never touch this cache. */
 
-const CACHE = 'riddim-v8';
+const CACHE = 'riddim-v9';
 
 const SHELL = [
   './',
@@ -10,6 +10,8 @@ const SHELL = [
   './css/style.css',
   './js/db.js',
   './js/app.js',
+  './js/config.js',
+  './js/vendor/supabase.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -34,12 +36,15 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
+  const url = new URL(request.url);
+  // Never intercept API or storage traffic — only same-origin app shell.
+  if (url.origin !== location.origin) return;
+
   event.respondWith(
     caches.match(request, { ignoreSearch: true }).then(cached => {
-      // Serve from cache, refresh in the background (stale-while-revalidate).
       const refresh = fetch(request)
         .then(response => {
-          if (response.ok && new URL(request.url).origin === location.origin) {
+          if (response.ok) {
             const copy = response.clone();
             caches.open(CACHE).then(cache => cache.put(request, copy));
           }

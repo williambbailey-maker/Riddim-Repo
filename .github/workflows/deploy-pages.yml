@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/audio-library-pwa-iysf23
   workflow_dispatch:
 
 permissions:

@@ -1,14 +1,25 @@
-/* Riddim Repo — drop in drum tracks, keep them organized, loop a groove. */
+/* Riddim Repo — cloud drum track library.
+   Metadata lives in Supabase (riddim_tracks); audio lives in the private
+   riddim-tracks storage bucket. IndexedDB caches audio blobs on-device
+   so playback is instant and keeps working offline. */
 
 (() => {
   'use strict';
 
+  const sb = supabase.createClient(
+    window.RIDDIM_CONFIG.supabaseUrl,
+    window.RIDDIM_CONFIG.supabaseKey
+  );
+  const BUCKET = 'riddim-tracks';
+  const META_CACHE_KEY = 'riddim-meta-cache-v1';
+
   // ---------- State ----------
 
-  let tracks = [];            // metadata records (no blobs)
-  let currentId = null;       // id of the track loaded in the player
-  let editingId = null;       // track being edited in the dialog
-  let currentUrl = null;      // object URL of the loaded blob
+  let tracks = [];            // track metadata (cloud rows, mapped)
+  let session = null;
+  let currentId = null;
+  let editingId = null;
+  let currentUrl = null;
 
   const audio = new Audio();
   audio.loop = true;          // grooves loop by default
@@ -25,9 +36,12 @@
   const els = {
     library: $('library'),
     emptyState: $('empty-state'),
+    toolbar: $('toolbar'),
     search: $('search'),
+    searchBtn: $('search-btn'),
     sort: $('sort'),
     addBtn: $('add-btn'),
+    logoutBtn: $('logout-btn'),
     fileInput: $('file-input'),
     dropOverlay: $('drop-overlay'),
     player: $('player'),
@@ -40,6 +54,11 @@
     loopBtn: $('loop-btn'),
     rate: $('rate'),
     volume: $('volume'),
+    authScreen: $('auth-screen'),
+    authForm: $('auth-form'),
+    authEmail: $('auth-email'),
+    authPassword: $('auth-password'),
+    authError: $('auth-error'),
     editDialog: $('edit-dialog'),
     editForm: $('edit-form'),
     editName: $('edit-name'),
@@ -77,12 +96,99 @@
     return filename.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
   }
 
+  function fileExt(filename) {
+    const m = filename.match(/\.([a-z0-9]+)$/i);
+    return m ? m[1].toLowerCase() : 'wav';
+  }
+
   let toastTimer = null;
   function toast(message) {
     els.toast.textContent = message;
     els.toast.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { els.toast.hidden = true; }, 2600);
+  }
+
+  // ---------- Cloud data layer ----------
+
+  function rowToMeta(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      filePath: row.file_path,
+      type: row.file_type,
+      size: row.size,
+      duration: row.duration,
+      bpm: row.bpm,
+      category: row.category || 'drum',
+      percussion: !!row.percussion,
+      notes: row.notes || [],
+      peaks: row.peaks,
+      addedAt: Date.parse(row.added_at),
+    };
+  }
+
+  async function loadLibrary() {
+    try {
+      const { data, error } = await sb.from('riddim_tracks')
+        .select('*')
+        .order('added_at', { ascending: false });
+      if (error) throw error;
+      tracks = data.map(rowToMeta);
+      localStorage.setItem(META_CACHE_KEY, JSON.stringify(tracks));
+      return true;
+    } catch (err) {
+      console.warn('Cloud library unavailable, using offline cache:', err);
+      try {
+        tracks = JSON.parse(localStorage.getItem(META_CACHE_KEY) || '[]');
+      } catch { tracks = []; }
+      if (tracks.length) toast('Offline — showing cached library');
+      return false;
+    }
+  }
+
+  async function patchTrack(id, fields) {
+    const row = {};
+    if ('name' in fields) row.name = fields.name;
+    if ('bpm' in fields) row.bpm = fields.bpm;
+    if ('category' in fields) row.category = fields.category;
+    if ('percussion' in fields) row.percussion = fields.percussion;
+    if ('notes' in fields) row.notes = fields.notes;
+    const { error } = await sb.from('riddim_tracks').update(row).eq('id', id);
+    if (error) throw error;
+    const idx = tracks.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      Object.assign(tracks[idx], fields);
+      localStorage.setItem(META_CACHE_KEY, JSON.stringify(tracks));
+    }
+    return idx !== -1 ? tracks[idx] : null;
+  }
+
+  async function deleteTrack(id) {
+    const t = tracks.find(x => x.id === id);
+    if (t && t.filePath) {
+      await sb.storage.from(BUCKET).remove([t.filePath]);
+    }
+    const { error } = await sb.from('riddim_tracks').delete().eq('id', id);
+    if (error) throw error;
+    tracks = tracks.filter(x => x.id !== id);
+    localStorage.setItem(META_CACHE_KEY, JSON.stringify(tracks));
+    RiddimDB.delete(id).catch(() => {});
+  }
+
+  /** Get the audio blob for a track: local cache first, cloud otherwise. */
+  async function getTrackBlob(t) {
+    const cached = await RiddimDB.get(t.id).catch(() => null);
+    if (cached && cached.blob) return cached.blob;
+
+    toast('Fetching from cloud…');
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(t.filePath, 3600);
+    if (error) throw error;
+    const res = await fetch(data.signedUrl);
+    if (!res.ok) throw new Error('Download failed: ' + res.status);
+    const blob = await res.blob();
+    RiddimDB.put({ id: t.id, blob }).catch(() => {});
+    return blob;
   }
 
   // ---------- Waveform peaks ----------
@@ -138,10 +244,8 @@
     base: css.getPropertyValue('--wave').trim() || '#3A3230',
     played: css.getPropertyValue('--orange').trim() || '#EC5620',
   };
-  // Card waveforms sit on bright color blocks — dark ink bars.
   const CARD_WAVE_COLORS = { base: 'rgba(6, 0, 0, 0.35)', played: 'rgba(6, 0, 0, 0.35)' };
 
-  // Stable color assignment per track (yellow/orange/green/pink cycle).
   function cardColorClass(id) {
     let h = 0;
     for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -165,8 +269,8 @@
     return file.type.startsWith('audio/') || AUDIO_EXT.test(file.name);
   }
 
-  /** Decode, compute peaks, store in IndexedDB. Returns the track meta. */
-  async function importOneFile(file, category) {
+  /** Decode + upload + insert. Returns the new track meta. */
+  async function importOneFile(file, category, presets) {
     const arrayBuffer = await file.arrayBuffer();
     let duration = 0;
     let peaks = null;
@@ -178,67 +282,46 @@
       console.warn('Could not decode (storing anyway):', file.name, err);
     }
 
-    const track = {
-      id: crypto.randomUUID(),
-      name: cleanName(file.name),
-      fileName: file.name,
-      type: file.type || 'audio/mpeg',
-      size: file.size,
+    const id = crypto.randomUUID();
+    const type = file.type || 'audio/wav';
+    const blob = new Blob([arrayBuffer], { type });
+    const path = `${session.user.id}/${id}.${fileExt(file.name)}`;
+
+    const { error: upErr } = await sb.storage.from(BUCKET)
+      .upload(path, blob, { contentType: type });
+    if (upErr) throw upErr;
+
+    const row = {
+      id,
+      name: (presets && presets.name) || cleanName(file.name),
+      file_path: path,
+      file_type: type,
+      size: blob.size,
       duration,
       peaks,
-      bpm: null,
-      percussion: false,
+      bpm: (presets && presets.bpm) || null,
       category: category || 'drum',
-      addedAt: Date.now(),
-      blob: new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }),
+      percussion: !!(presets && presets.percussion),
+      notes: (presets && presets.notes) || [],
     };
+    if (presets && presets.addedAt) row.added_at = new Date(presets.addedAt).toISOString();
 
-    await RiddimDB.put(track);
-    const { blob, ...meta } = track;
+    const { data, error } = await sb.from('riddim_tracks').insert(row).select().single();
+    if (error) {
+      sb.storage.from(BUCKET).remove([path]).catch(() => {});
+      throw error;
+    }
+
+    RiddimDB.put({ id, blob }).catch(() => {});
+    const meta = rowToMeta(data);
     tracks.push(meta);
+    localStorage.setItem(META_CACHE_KEY, JSON.stringify(tracks));
     return meta;
-  }
-
-  /** Ship-with-the-app starter groove, imported once on first run. */
-  const SEED_FLAG = 'riddim-repo-seeded-v1';
-  async function seedSampleTrack() {
-    if (localStorage.getItem(SEED_FLAG)) return;
-    try {
-      const res = await fetch('samples/zuchinni-dryne.wav');
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const file = new File([blob], 'Zuchinni Dryne.wav', { type: 'audio/wav' });
-      const meta = await importOneFile(file, 'drum');
-      const patched = await RiddimDB.patch(meta.id, { bpm: 65 });
-      const idx = tracks.findIndex(t => t.id === meta.id);
-      if (idx !== -1) tracks[idx] = patched;
-      localStorage.setItem(SEED_FLAG, '1');
-      render();
-    } catch (err) {
-      console.warn('Sample seed skipped:', err);
-    }
-  }
-
-  /** One-time fix: the bundled groove was first tagged 130 BPM; it's 65. */
-  const BPM_FIX_FLAG = 'riddim-zd-bpm65';
-  async function fixSeededBpm() {
-    if (localStorage.getItem(BPM_FIX_FLAG)) return;
-    try {
-      const zd = tracks.find(t => t.fileName === 'Zuchinni Dryne.wav' && t.bpm === 130);
-      if (zd) {
-        const patched = await RiddimDB.patch(zd.id, { bpm: 65 });
-        const idx = tracks.findIndex(t => t.id === zd.id);
-        if (idx !== -1) tracks[idx] = patched;
-        render();
-      }
-      localStorage.setItem(BPM_FIX_FLAG, '1');
-    } catch (err) {
-      console.warn('BPM fix skipped:', err);
-    }
   }
 
   /** New uploads land in Drums; re-categorize via Edit to move them. */
   async function importFiles(fileList) {
+    if (!session) { toast('Log in first'); return; }
     const files = Array.from(fileList).filter(isAudioFile);
     const skipped = fileList.length - files.length;
     if (!files.length) {
@@ -246,7 +329,7 @@
       return;
     }
 
-    toast(`Importing ${files.length} track${files.length > 1 ? 's' : ''}…`);
+    toast(`Uploading ${files.length} track${files.length > 1 ? 's' : ''}…`);
     let imported = 0;
 
     for (const file of files) {
@@ -255,7 +338,7 @@
         imported++;
       } catch (err) {
         console.error('Import failed:', file.name, err);
-        toast(`Couldn't import ${file.name}`);
+        toast(`Couldn't upload ${file.name}`);
       }
     }
 
@@ -263,6 +346,54 @@
     if (imported) {
       toast(`Added ${imported} track${imported > 1 ? 's' : ''}` +
             (skipped > 0 ? ` (skipped ${skipped} non-audio)` : ''));
+    }
+  }
+
+  /** Move any pre-cloud local tracks (with metadata in IndexedDB) up to the cloud. */
+  async function migrateLocalLibrary() {
+    let records = [];
+    try { records = await RiddimDB.getAllRecords(); } catch { return; }
+    const legacy = records.filter(r => r.name && r.blob);
+    if (!legacy.length) return;
+
+    toast(`Syncing ${legacy.length} local track${legacy.length > 1 ? 's' : ''} to the cloud…`);
+    for (const rec of legacy) {
+      try {
+        const dupe = tracks.find(t => t.name === rec.name && t.size === rec.size);
+        if (!dupe) {
+          let bpm = rec.bpm || null;
+          if (rec.fileName === 'Zuchinni Dryne.wav' && bpm === 130) bpm = 65;
+          const file = new File([rec.blob], rec.fileName || (rec.name + '.wav'),
+                                { type: rec.type || 'audio/wav' });
+          await importOneFile(file, rec.category || 'drum', {
+            name: rec.name,
+            bpm,
+            percussion: !!rec.percussion,
+            notes: rec.notes || [],
+            addedAt: rec.addedAt,
+          });
+        }
+        await RiddimDB.delete(rec.id);
+      } catch (err) {
+        console.error('Migration failed for', rec.name, err);
+      }
+    }
+    render();
+    toast('Local tracks synced to the cloud');
+  }
+
+  /** Ship-with-the-app starter groove — only for a brand-new empty library. */
+  async function seedSampleTrack() {
+    if (tracks.length) return;
+    try {
+      const res = await fetch('samples/zuchinni-dryne.wav');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const file = new File([blob], 'Zuchinni Dryne.wav', { type: 'audio/wav' });
+      await importOneFile(file, 'drum', { bpm: 65 });
+      render();
+    } catch (err) {
+      console.warn('Sample seed skipped:', err);
     }
   }
 
@@ -281,9 +412,7 @@
     list.sort((a, b) => {
       let va, vb;
       switch (key) {
-        case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
         case 'bpm': va = a.bpm || Infinity; vb = b.bpm || Infinity; break;
-        case 'duration': va = a.duration || 0; vb = b.duration || 0; break;
         default: va = a.addedAt; vb = b.addedAt;
       }
       return va < vb ? -sign : va > vb ? sign : 0;
@@ -291,7 +420,6 @@
     return list;
   }
 
-  /** Tracks in on-screen order: grouped by category, sorted within each. */
   function displayOrder() {
     const list = visibleTracks();
     return CATEGORIES.flatMap(cat => list.filter(t => trackCategory(t) === cat.key));
@@ -300,7 +428,7 @@
   function renderLibrary() {
     const list = visibleTracks();
     els.library.innerHTML = '';
-    els.emptyState.style.display = tracks.length ? 'none' : '';
+    els.emptyState.style.display = (session && tracks.length === 0) ? '' : 'none';
 
     for (const cat of CATEGORIES) {
       const group = list.filter(t => trackCategory(t) === cat.key);
@@ -363,7 +491,7 @@
       editBtn.type = 'button';
       editBtn.className = 'track-edit';
       editBtn.textContent = 'Edit';
-      editBtn.title = 'Edit name and BPM';
+      editBtn.title = 'Edit name, type, and BPM';
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
       head.append(playBtn, titles, editBtn);
@@ -389,9 +517,7 @@
         percLabel.addEventListener('click', e => e.stopPropagation());
         percBox.addEventListener('change', async () => {
           try {
-            const patched = await RiddimDB.patch(t.id, { percussion: percBox.checked });
-            const idx = tracks.findIndex(x => x.id === t.id);
-            if (idx !== -1) tracks[idx] = patched;
+            await patchTrack(t.id, { percussion: percBox.checked });
           } catch (err) {
             console.error(err);
             percBox.checked = !percBox.checked;
@@ -470,9 +596,7 @@
         try {
           const existing = tracks.find(x => x.id === t.id);
           const notes = [...((existing && existing.notes) || []), entry];
-          const patched = await RiddimDB.patch(t.id, { notes });
-          const idx = tracks.findIndex(x => x.id === t.id);
-          if (idx !== -1) tracks[idx] = patched;
+          await patchTrack(t.id, { notes });
           noteList.prepend(noteEntryEl(entry));
           noteInput.value = '';
         } catch (err) {
@@ -515,13 +639,20 @@
   }
 
   async function playTrack(id) {
-    const record = await RiddimDB.get(id);
-    if (!record) {
-      toast('Track not found');
+    const t = tracks.find(x => x.id === id);
+    if (!t) { toast('Track not found'); return; }
+
+    let blob;
+    try {
+      blob = await getTrackBlob(t);
+    } catch (err) {
+      console.error('Could not load audio:', err);
+      toast('Could not load audio (offline?)');
       return;
     }
+
     if (currentUrl) URL.revokeObjectURL(currentUrl);
-    currentUrl = URL.createObjectURL(record.blob);
+    currentUrl = URL.createObjectURL(blob);
     currentId = id;
 
     audio.src = currentUrl;
@@ -533,7 +664,7 @@
     }
 
     els.player.hidden = false;
-    updatePlayerHeader();
+    els.timeTotal.textContent = formatTime(t.duration || audio.duration);
     updateMediaSession();
     render();
   }
@@ -556,12 +687,6 @@
       ? (direction > 0 ? list[0] : list[list.length - 1])
       : list[(idx + direction + list.length) % list.length];
     playTrack(next.id);
-  }
-
-  function updatePlayerHeader() {
-    const t = currentTrack();
-    if (!t) return;
-    els.timeTotal.textContent = formatTime(t.duration || audio.duration);
   }
 
   function updateMediaSession() {
@@ -601,10 +726,7 @@
 
   audio.addEventListener('play', syncPlayButtons);
   audio.addEventListener('pause', syncPlayButtons);
-  audio.addEventListener('ended', () => {
-    // Only fires when loop is off — move on to the next groove.
-    step(1);
-  });
+  audio.addEventListener('ended', () => step(1));
 
   els.playBtn.addEventListener('click', togglePlay);
   els.prevBtn.addEventListener('click', () => step(-1));
@@ -652,11 +774,8 @@
     const category = els.editCategory.value;
 
     try {
-      const meta = await RiddimDB.patch(editingId, { name, bpm, category });
-      const idx = tracks.findIndex(t => t.id === editingId);
-      if (idx !== -1) tracks[idx] = meta;
+      await patchTrack(editingId, { name, bpm, category });
       render();
-      updatePlayerHeader();
     } catch (err) {
       console.error(err);
       toast('Could not save changes');
@@ -674,8 +793,7 @@
     const t = tracks.find(x => x.id === editingId);
     if (!confirm(`Delete “${t ? t.name : 'this track'}” from your library?`)) return;
     try {
-      await RiddimDB.delete(editingId);
-      tracks = tracks.filter(x => x.id !== editingId);
+      await deleteTrack(editingId);
       if (currentId === editingId) {
         audio.pause();
         audio.removeAttribute('src');
@@ -697,7 +815,7 @@
   els.tapTempo.addEventListener('click', () => {
     const now = performance.now();
     if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2500) {
-      tapTimes.length = 0; // long pause — start a fresh measurement
+      tapTimes.length = 0;
     }
     tapTimes.push(now);
     if (tapTimes.length < 2) {
@@ -743,7 +861,7 @@
     }
   });
 
-  // ---------- File picker ----------
+  // ---------- File picker, search toggle, sort ----------
 
   els.addBtn.addEventListener('click', () => els.fileInput.click());
   els.fileInput.addEventListener('change', () => {
@@ -751,16 +869,66 @@
     els.fileInput.value = '';
   });
 
-  // ---------- Search & sort ----------
+  els.searchBtn.addEventListener('click', () => {
+    els.toolbar.hidden = !els.toolbar.hidden;
+    if (!els.toolbar.hidden) {
+      els.search.focus();
+    } else {
+      els.search.value = '';
+      renderLibrary();
+    }
+  });
 
   els.search.addEventListener('input', renderLibrary);
   els.sort.addEventListener('change', renderLibrary);
+
+  // ---------- Auth ----------
+
+  function setAuthed(s) {
+    session = s;
+    els.authScreen.hidden = !!s;
+    els.logoutBtn.hidden = !s;
+  }
+
+  els.authForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    els.authError.hidden = true;
+    const btn = els.authForm.querySelector('.auth-submit');
+    btn.disabled = true;
+    btn.textContent = 'Logging in…';
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: els.authEmail.value.trim(),
+        password: els.authPassword.value,
+      });
+      if (error) throw error;
+      setAuthed(data.session);
+      await bootLibrary();
+    } catch (err) {
+      console.error(err);
+      els.authError.textContent = err.message || 'Login failed';
+      els.authError.hidden = false;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Log In';
+  });
+
+  els.logoutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut().catch(() => {});
+    setAuthed(null);
+    tracks = [];
+    currentId = null;
+    audio.pause();
+    audio.removeAttribute('src');
+    els.player.hidden = true;
+    render();
+  });
 
   // ---------- Keyboard ----------
 
   window.addEventListener('keydown', event => {
     const inField = /^(input|select|textarea)$/i.test(event.target.tagName) ||
-                    els.editDialog.open;
+                    els.editDialog.open || !els.authScreen.hidden;
     if (inField) return;
     if (event.code === 'Space') {
       event.preventDefault();
@@ -774,7 +942,6 @@
     }
   });
 
-  // Redraw card waveforms when the layout changes size.
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
@@ -783,22 +950,28 @@
 
   // ---------- Boot ----------
 
+  async function bootLibrary() {
+    const online = await loadLibrary();
+    render();
+    if (online) {
+      await migrateLocalLibrary();
+      await seedSampleTrack();
+      render();
+    }
+  }
+
   async function init() {
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
     }
 
-    try {
-      tracks = await RiddimDB.getAllMeta();
-    } catch (err) {
-      console.error('Failed to open library:', err);
-      toast('Could not open your library (storage unavailable)');
-      tracks = [];
-    }
-    render();
     requestAnimationFrame(playerFrame);
-    fixSeededBpm();
-    seedSampleTrack();
+
+    const { data } = await sb.auth.getSession();
+    setAuthed(data.session);
+    if (data.session) {
+      await bootLibrary();
+    }
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(err => {
