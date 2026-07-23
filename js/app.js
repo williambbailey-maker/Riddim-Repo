@@ -20,6 +20,7 @@
   let currentId = null;
   let editingId = null;
   let currentUrl = null;
+  let favoritesOnly = false;
 
   const audio = new Audio();
   audio.loop = true;          // grooves loop by default
@@ -39,6 +40,7 @@
     toolbar: $('toolbar'),
     search: $('search'),
     searchBtn: $('search-btn'),
+    favoritesBtn: $('favorites-btn'),
     sort: $('sort'),
     addBtn: $('add-btn'),
     logoutBtn: $('logout-btn'),
@@ -408,6 +410,7 @@
   function visibleTracks() {
     const query = els.search.value.trim().toLowerCase();
     let list = tracks.filter(t => {
+      if (favoritesOnly && !t.favorite) return false;
       if (!query) return true;
       const haystack = (t.name + ' ' + (t.bpm || '')).toLowerCase();
       return query.split(/\s+/).every(word => haystack.includes(word));
@@ -436,7 +439,7 @@
     els.library.innerHTML = '';
     els.emptyState.style.display = (session && tracks.length === 0) ? '' : 'none';
 
-    const searching = els.search.value.trim().length > 0;
+    const searching = els.search.value.trim().length > 0 || favoritesOnly;
 
     for (const cat of CATEGORIES) {
       const group = list.filter(t => trackCategory(t) === cat.key);
@@ -519,6 +522,7 @@
         try {
           await patchTrack(t.id, { favorite: next });
           t.favorite = next;
+          if (favoritesOnly && !next) renderLibrary();
         } catch (err) {
           console.error(err);
           starBtn.classList.toggle('starred', !next);
@@ -943,8 +947,18 @@
       els.search.focus();
     } else {
       els.search.value = '';
+      favoritesOnly = false;
+      els.favoritesBtn.classList.remove('active');
+      els.favoritesBtn.setAttribute('aria-pressed', 'false');
       renderLibrary();
     }
+  });
+
+  els.favoritesBtn.addEventListener('click', () => {
+    favoritesOnly = !favoritesOnly;
+    els.favoritesBtn.classList.toggle('active', favoritesOnly);
+    els.favoritesBtn.setAttribute('aria-pressed', String(favoritesOnly));
+    renderLibrary();
   });
 
   els.search.addEventListener('input', renderLibrary);
@@ -1032,7 +1046,7 @@
     }
   }
 
-  const SPLASH_MIN_MS = 1300;
+  const SPLASH_MIN_MS = 2600;
   function hideSplash() {
     const splash = document.getElementById('splash');
     if (!splash) return;
