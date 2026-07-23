@@ -16,35 +16,38 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <h1 class="wordmark">Riddim Repo</h1>
+    <h1 class="wordmark"><span>R</span><span>i</span><span>d</span><span>d</span><span>i</span><span>m</span>&nbsp;<span>R</span><span>e</span><span>p</span><span>o</span></h1>
+    <div class="topbar-actions">
+      <button id="search-btn" class="icon-pill" type="button" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button id="add-btn" class="btn-pill btn-orange" type="button">+ Add Tracks</button>
+      <button id="logout-btn" class="icon-pill" type="button" title="Log out" aria-label="Log out" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
-    <button id="add-btn" class="btn-pill btn-orange" type="button">+ Add Tracks</button>
     <input id="file-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.aiff" multiple hidden>
   </header>
 
-  <section class="toolbar">
+  <section class="toolbar" id="toolbar" hidden>
     <input id="search" class="search" type="search" placeholder="Search tracks" autocomplete="off">
     <select id="sort" class="select" title="Sort library">
       <option value="added-desc">Newest first</option>
       <option value="added-asc">Oldest first</option>
-      <option value="name-asc">Name A→Z</option>
-      <option value="name-desc">Name Z→A</option>
       <option value="bpm-asc">BPM low→high</option>
       <option value="bpm-desc">BPM high→low</option>
-      <option value="duration-asc">Shortest first</option>
-      <option value="duration-desc">Longest first</option>
     </select>
   </section>
 
   <main id="library" class="library" aria-live="polite"></main>
 
-  <div id="empty-state" class="empty-state">
+  <div id="empty-state" class="empty-state" style="display:none">
     <div class="empty-card">
       <span class="empty-badge">Getting started</span>
       <h2>Drop Your<br>Drums Here</h2>
       <p>Drag <strong>.wav</strong> or <strong>.mp3</strong> drum tracks anywhere on this page, or hit
-         <strong>+ Add Tracks</strong>. They're stored right on your device — loop one up and jam over it.</p>
+         <strong>+ Add Tracks</strong>. They upload to your cloud library — loop one up and jam over it
+         from any device.</p>
     </div>
   </div>
 
@@ -92,6 +95,20 @@
     </div>
   </footer>
 
+  <!-- Login screen -->
+  <div id="auth-screen" class="auth-screen" hidden>
+    <div class="auth-card">
+      <h2 class="wordmark auth-logo"><span>R</span><span>i</span><span>d</span><span>d</span><span>i</span><span>m</span>&nbsp;<span>R</span><span>e</span><span>p</span><span>o</span></h2>
+      <p class="auth-sub">Enter the passcode</p>
+      <form id="auth-form">
+        <input id="auth-passcode" class="auth-passcode" type="password" inputmode="numeric" pattern="[0-9]*"
+               placeholder="•••" maxlength="8" required autocomplete="off">
+        <button class="btn-pill btn-orange auth-submit" type="submit">Enter</button>
+        <div id="auth-error" class="auth-error" hidden></div>
+      </form>
+    </div>
+  </div>
+
   <!-- Edit dialog -->
   <dialog id="edit-dialog" class="dialog">
     <form method="dialog" id="edit-form">
@@ -123,6 +140,8 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script src="js/app.js"></script>
 </body>

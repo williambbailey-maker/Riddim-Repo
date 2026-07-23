@@ -1,6 +1,8 @@
-/* Riddim — IndexedDB storage for audio tracks.
-   Tracks (including the audio blob itself) live entirely in the browser,
-   so the library works offline and survives reloads. */
+/* Riddim Repo — IndexedDB, used as a local audio cache.
+   Track metadata lives in the cloud (Supabase); this store keeps audio
+   blobs on-device so playback is instant and works offline. Records
+   from the pre-cloud era also carry metadata, which the app migrates
+   up to the cloud on first login. */
 
 const RiddimDB = (() => {
   const DB_NAME = 'riddim';
@@ -38,25 +40,21 @@ const RiddimDB = (() => {
   }
 
   return {
-    /** Store or update a full track record (including blob). */
-    put(track) {
-      return tx('readwrite', store => store.put(track));
+    put(record) {
+      return tx('readwrite', store => store.put(record));
     },
 
-    /** All track records, without their blobs (kept light for the library view). */
-    async getAllMeta() {
+    /** Every full record, blobs included (used for legacy migration). */
+    async getAllRecords() {
       const db = await open();
       return new Promise((resolve, reject) => {
         const t = db.transaction(STORE, 'readonly');
         const req = t.objectStore(STORE).getAll();
-        req.onsuccess = () => {
-          resolve(req.result.map(({ blob, ...meta }) => meta));
-        };
+        req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
     },
 
-    /** One full record, blob included — used when actually playing a track. */
     async get(id) {
       const db = await open();
       return new Promise((resolve, reject) => {
@@ -65,16 +63,6 @@ const RiddimDB = (() => {
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
-    },
-
-    /** Update metadata fields on an existing record, leaving the blob alone. */
-    async patch(id, fields) {
-      const record = await this.get(id);
-      if (!record) throw new Error('Track not found: ' + id);
-      Object.assign(record, fields);
-      await this.put(record);
-      const { blob, ...meta } = record;
-      return meta;
     },
 
     delete(id) {
