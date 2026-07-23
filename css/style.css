@@ -10,7 +10,7 @@
   --muted-fg: #9A8F8C;
   --orange: #EC5620;
   --yellow: #FDC800;
-  --teal: #2EC4B6;
+  --green: #00A551;
   --pink: #F576B9;
   --ink: #060000;
   --border: #2A2422;
@@ -80,17 +80,10 @@ input, select { font: inherit; }
 
 .wordmark {
   margin: 0;
-  font-size: clamp(2rem, 5.5vw, 3.25rem);
+  font-size: clamp(2.6rem, 7.15vw, 4.25rem);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.01em;
-}
-
-.tagline {
-  color: var(--muted-fg);
-  font-weight: 500;
-  font-size: 0.875rem;
-  margin-top: 2px;
 }
 
 /* ---------- Pills & buttons ---------- */
@@ -165,32 +158,6 @@ input, select { font: inherit; }
 .select:focus { outline: none; border-color: var(--yellow); }
 .select-small { height: 38px; padding: 0 12px; font-size: 0.875rem; }
 
-/* ---------- Tag bar ---------- */
-
-.tag-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 24px;
-}
-
-.tag-chip {
-  background: transparent;
-  border: 1.5px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted-fg);
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 8px 18px;
-  transition: all 150ms var(--ease);
-}
-.tag-chip:hover { color: var(--fg); border-color: var(--muted-fg); }
-.tag-chip.active {
-  background: var(--fg);
-  border-color: var(--fg);
-  color: var(--ink);
-}
-
 /* ---------- Section head ---------- */
 
 .section-head {
@@ -247,7 +214,7 @@ input, select { font: inherit; }
 
 .card-c0 { background: var(--yellow); }
 .card-c1 { background: var(--orange); }
-.card-c2 { background: var(--teal); }
+.card-c2 { background: var(--green); }
 .card-c3 { background: var(--pink); }
 
 .track-head {
@@ -283,18 +250,20 @@ input, select { font: inherit; }
   text-overflow: ellipsis;
 }
 
-.track-sub {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
+.track-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 6px;
+}
+
+.track-pill {
   background: rgba(254, 254, 254, 0.5);
   border-radius: 999px;
   padding: 2px 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  width: fit-content;
-  max-width: 100%;
+  white-space: nowrap;
 }
 
 .track-bpm { font-weight: 800; }
@@ -322,22 +291,46 @@ input, select { font: inherit; }
   z-index: 1;
 }
 
-.track-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.track-tag {
-  border: 1.5px solid rgba(6, 0, 0, 0.55);
+.perc-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  background: rgba(6, 0, 0, 0.12);
   border-radius: 999px;
-  color: var(--ink);
-  font-size: 0.6875rem;
+  padding: 7px 16px;
+  font-size: 0.8125rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 3px 12px;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition: background 150ms var(--ease);
 }
+.perc-check:hover { background: rgba(6, 0, 0, 0.22); }
+.perc-check input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+}
+.perc-check input::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  transform: scale(0);
+  background: var(--ink);
+  transition: transform 120ms var(--ease);
+}
+.perc-check input:checked::before { transform: scale(1); }
 
 /* ---------- Empty state ---------- */
 
@@ -534,19 +527,24 @@ input, select { font: inherit; }
 .play-btn:active { transform: scale(0.97); }
 
 .loop-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   background: transparent;
   border: 1.5px solid var(--border);
   color: var(--muted-fg);
-  font-size: 0.8125rem;
-  padding: 9px 18px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  padding: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms var(--ease);
 }
+.loop-btn svg { width: 100%; height: 100%; display: block; }
 .loop-btn:hover { color: var(--fg); border-color: var(--muted-fg); }
 .loop-btn.toggled {
-  background: var(--yellow);
-  border-color: var(--yellow);
-  color: var(--ink);
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--fg);
 }
 
 .player-extras {

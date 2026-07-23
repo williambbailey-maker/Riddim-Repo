@@ -18,14 +18,13 @@
   <header class="topbar">
     <div class="brand">
       <h1 class="wordmark">Riddim Repo</h1>
-      <span class="tagline">Drum track library</span>
     </div>
     <button id="add-btn" class="btn-pill btn-orange" type="button">+ Add Tracks</button>
     <input id="file-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.aiff" multiple hidden>
   </header>
 
   <section class="toolbar">
-    <input id="search" class="search" type="search" placeholder="Search tracks or tags" autocomplete="off">
+    <input id="search" class="search" type="search" placeholder="Search tracks" autocomplete="off">
     <select id="sort" class="select" title="Sort library">
       <option value="added-desc">Newest first</option>
       <option value="added-asc">Oldest first</option>
@@ -37,8 +36,6 @@
       <option value="duration-desc">Longest first</option>
     </select>
   </section>
-
-  <div id="tag-bar" class="tag-bar" hidden></div>
 
   <div class="section-head" id="section-head" hidden>
     <h2>Your Grooves</h2>
@@ -85,7 +82,9 @@
         <button id="next-btn" class="skip-btn" title="Next track" aria-label="Next track">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
         </button>
-        <button id="loop-btn" class="btn-pill loop-btn toggled" title="Loop (on by default — keep the groove going)" aria-label="Toggle loop">Loop</button>
+        <button id="loop-btn" class="loop-btn toggled" title="Loop (on by default — keep the groove going)" aria-label="Toggle loop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+        </button>
       </div>
       <div class="player-extras">
         <label class="rate-label" title="Playback speed">
@@ -114,9 +113,6 @@
           <input id="edit-bpm" type="number" min="20" max="400" step="0.1" placeholder="92" autocomplete="off">
           <button type="button" id="tap-tempo" class="btn-pill btn-yellow" title="Tap along with the track to set BPM">Tap Tempo</button>
         </div>
-      </label>
-      <label>Tags <span class="hint">comma separated</span>
-        <input id="edit-tags" type="text" placeholder="funk, halftime, brushes" autocomplete="off">
       </label>
       <div class="dialog-actions">
         <button type="button" id="edit-delete" class="btn-pill btn-outline-danger">Delete</button>
