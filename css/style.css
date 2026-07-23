@@ -618,27 +618,6 @@ input, select { font: inherit; }
 }
 .spacer { flex: 1; }
 
-/* ---------- Category picker ---------- */
-
-.cat-dialog h3 { margin-bottom: 6px; }
-
-.cat-sub {
-  margin: 0 0 20px;
-  color: var(--muted-fg);
-  font-weight: 500;
-}
-
-.cat-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cat-options .btn-pill {
-  width: 100%;
-  padding: 16px 22px;
-  font-size: 1.0625rem;
-}
-
 .edit-select {
   display: block;
   width: 100%;
