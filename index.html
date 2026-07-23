@@ -2,16 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="Riddim Repo — a drum track library. Drop in wav/mp3 drum loops and get a groove going.">
   <title>Riddim Repo — Drum Track Library</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-v2.png">
+  <!-- Standalone home-screen launch: real app chrome, not a Safari tab -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Riddim Repo">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Opening animation: sound waves ringing out from the app icon -->
+  <div id="splash" class="splash" aria-hidden="true">
+    <div class="splash-rings">
+      <span class="ring ring-red"></span>
+      <span class="ring ring-gold"></span>
+      <span class="ring ring-green"></span>
+      <span class="ring ring-red"></span>
+      <span class="ring ring-gold"></span>
+      <span class="ring ring-green"></span>
+    </div>
+    <img class="splash-icon" src="icons/icon-512.png" width="128" height="128" alt="">
+  </div>
+  <script>window.__splashStart = Date.now();</script>
   <header class="topbar">
     <div class="brand-row">
       <h1 class="wordmark"><span class="w-riddim">Riddim</span><br><span class="w-repo">Repo</span></h1>

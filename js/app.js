@@ -1032,6 +1032,18 @@
     }
   }
 
+  const SPLASH_MIN_MS = 1300;
+  function hideSplash() {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    const started = window.__splashStart || Date.now();
+    const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - started));
+    setTimeout(() => {
+      splash.classList.add('splash-hide');
+      setTimeout(() => { splash.hidden = true; }, 550);
+    }, wait);
+  }
+
   async function init() {
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
@@ -1039,10 +1051,17 @@
 
     requestAnimationFrame(playerFrame);
 
-    const { data } = await sb.auth.getSession();
-    setAuthed(data.session);
-    if (data.session) {
-      await bootLibrary();
+    try {
+      const { data } = await sb.auth.getSession();
+      setAuthed(data.session);
+      if (data.session) {
+        await bootLibrary();
+      }
+    } catch (err) {
+      console.error('Startup failed:', err);
+      setAuthed(null);
+    } finally {
+      hideSplash();
     }
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
