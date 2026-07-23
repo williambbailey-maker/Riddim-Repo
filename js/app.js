@@ -66,9 +66,9 @@
     editName: $('edit-name'),
     editCategory: $('edit-category'),
     editBpm: $('edit-bpm'),
+    editDate: $('edit-date'),
     editDelete: $('edit-delete'),
     editCancel: $('edit-cancel'),
-    tapTempo: $('tap-tempo'),
     toast: $('toast'),
   };
 
@@ -86,6 +86,22 @@
     const opts = { month: 'short', day: 'numeric' };
     if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
     return d.toLocaleDateString(undefined, opts);
+  }
+
+  function formatDateShort(ts) {
+    const d = new Date(ts);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${mm}/${dd}/${yy}`;
+  }
+
+  /** yyyy-mm-dd for <input type="date">, in local time. */
+  function toDateInputValue(ts) {
+    const d = new Date(ts);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
   function formatStamp(ts) {
@@ -158,6 +174,7 @@
     if ('percussion' in fields) row.percussion = fields.percussion;
     if ('favorite' in fields) row.favorite = fields.favorite;
     if ('notes' in fields) row.notes = fields.notes;
+    if ('addedAt' in fields) row.added_at = new Date(fields.addedAt).toISOString();
     const { error } = await sb.from('riddim_tracks').update(row).eq('id', id);
     if (error) throw error;
     const idx = tracks.findIndex(t => t.id === id);
@@ -504,7 +521,7 @@
       }
       const date = document.createElement('span');
       date.className = 'track-pill track-date';
-      date.textContent = 'Added ' + formatDate(t.addedAt);
+      date.textContent = 'Added ' + formatDateShort(t.addedAt);
       sub.appendChild(date);
       titles.append(name, sub);
 
@@ -848,19 +865,26 @@
     els.editName.value = t.name;
     els.editCategory.value = trackCategory(t);
     els.editBpm.value = t.bpm || '';
-    tapTimes.length = 0;
-    els.tapTempo.textContent = 'Tap Tempo';
+    els.editDate.value = toDateInputValue(t.addedAt);
     els.editDialog.showModal();
   }
 
   els.editForm.addEventListener('submit', async () => {
     if (!editingId) return;
+    const t = tracks.find(x => x.id === editingId);
     const name = els.editName.value.trim();
     const bpm = parseFloat(els.editBpm.value) || null;
     const category = els.editCategory.value;
 
+    let addedAt = t ? t.addedAt : Date.now();
+    if (els.editDate.value) {
+      const [y, m, dd] = els.editDate.value.split('-').map(Number);
+      const orig = new Date(addedAt);
+      addedAt = new Date(y, m - 1, dd, orig.getHours(), orig.getMinutes(), orig.getSeconds()).getTime();
+    }
+
     try {
-      await patchTrack(editingId, { name, bpm, category });
+      await patchTrack(editingId, { name, bpm, category, addedAt });
       render();
     } catch (err) {
       console.error(err);
@@ -894,27 +918,6 @@
     }
     editingId = null;
     els.editDialog.close();
-  });
-
-  // Tap tempo — tap along with the groove, we average the intervals.
-  const tapTimes = [];
-  els.tapTempo.addEventListener('click', () => {
-    const now = performance.now();
-    if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2500) {
-      tapTimes.length = 0;
-    }
-    tapTimes.push(now);
-    if (tapTimes.length < 2) {
-      els.tapTempo.textContent = 'Keep tapping…';
-      return;
-    }
-    const recent = tapTimes.slice(-9);
-    const intervals = [];
-    for (let i = 1; i < recent.length; i++) intervals.push(recent[i] - recent[i - 1]);
-    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const bpm = Math.round((60000 / avg) * 10) / 10;
-    els.editBpm.value = bpm;
-    els.tapTempo.textContent = bpm + ' BPM';
   });
 
   // ---------- Drag & drop ----------

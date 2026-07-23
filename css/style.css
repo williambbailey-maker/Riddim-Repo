@@ -748,8 +748,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
 }
 .dialog input:focus { outline: none; border-color: var(--gold); }
 .edit-select { display: block; width: 100%; margin-top: 6px; height: 48px; }
-.bpm-row { display: flex; gap: 8px; margin-top: 6px; align-items: stretch; }
-.bpm-row input { flex: 1; margin-top: 0 !important; }
+.dialog input[type="date"] { color-scheme: dark; }
 .dialog-actions { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
 .spacer { flex: 1; }
 
