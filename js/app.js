@@ -29,6 +29,8 @@
     search: $('search'),
     sort: $('sort'),
     tagBar: $('tag-bar'),
+    sectionHead: $('section-head'),
+    trackCount: $('track-count'),
     addBtn: $('add-btn'),
     fileInput: $('file-input'),
     dropOverlay: $('drop-overlay'),
@@ -132,9 +134,18 @@
 
   const css = getComputedStyle(document.documentElement);
   const WAVE_COLORS = {
-    base: css.getPropertyValue('--wave').trim() || '#4a4238',
-    played: css.getPropertyValue('--accent').trim() || '#f5a623',
+    base: css.getPropertyValue('--wave').trim() || '#3A3230',
+    played: css.getPropertyValue('--orange').trim() || '#EC5620',
   };
+  // Card waveforms sit on bright color blocks — dark ink bars.
+  const CARD_WAVE_COLORS = { base: 'rgba(6, 0, 0, 0.35)', played: 'rgba(6, 0, 0, 0.35)' };
+
+  // Stable color assignment per track (yellow/orange/teal/pink cycle).
+  function cardColorClass(id) {
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return 'card-c' + (h % 4);
+  }
 
   // ---------- Import ----------
 
@@ -142,6 +153,59 @@
 
   function isAudioFile(file) {
     return file.type.startsWith('audio/') || AUDIO_EXT.test(file.name);
+  }
+
+  /** Decode, compute peaks, store in IndexedDB. Returns the track meta. */
+  async function importOneFile(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    let duration = 0;
+    let peaks = null;
+    try {
+      const decoded = await getAudioCtx().decodeAudioData(arrayBuffer.slice(0));
+      duration = decoded.duration;
+      peaks = computePeaks(decoded);
+    } catch (err) {
+      console.warn('Could not decode (storing anyway):', file.name, err);
+    }
+
+    const track = {
+      id: crypto.randomUUID(),
+      name: cleanName(file.name),
+      fileName: file.name,
+      type: file.type || 'audio/mpeg',
+      size: file.size,
+      duration,
+      peaks,
+      bpm: null,
+      tags: [],
+      addedAt: Date.now(),
+      blob: new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }),
+    };
+
+    await RiddimDB.put(track);
+    const { blob, ...meta } = track;
+    tracks.push(meta);
+    return meta;
+  }
+
+  /** Ship-with-the-app starter groove, imported once on first run. */
+  const SEED_FLAG = 'riddim-repo-seeded-v1';
+  async function seedSampleTrack() {
+    if (localStorage.getItem(SEED_FLAG)) return;
+    try {
+      const res = await fetch('samples/zuchinni-dryne.wav');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const file = new File([blob], 'Zuchinni Dryne.wav', { type: 'audio/wav' });
+      const meta = await importOneFile(file);
+      const patched = await RiddimDB.patch(meta.id, { bpm: 130, tags: ['sample', 'breaks'] });
+      const idx = tracks.findIndex(t => t.id === meta.id);
+      if (idx !== -1) tracks[idx] = patched;
+      localStorage.setItem(SEED_FLAG, '1');
+      render();
+    } catch (err) {
+      console.warn('Sample seed skipped:', err);
+    }
   }
 
   async function importFiles(fileList) {
@@ -157,34 +221,7 @@
 
     for (const file of files) {
       try {
-        const arrayBuffer = await file.arrayBuffer();
-        let duration = 0;
-        let peaks = null;
-        try {
-          const decoded = await getAudioCtx().decodeAudioData(arrayBuffer.slice(0));
-          duration = decoded.duration;
-          peaks = computePeaks(decoded);
-        } catch (err) {
-          console.warn('Could not decode (storing anyway):', file.name, err);
-        }
-
-        const track = {
-          id: crypto.randomUUID(),
-          name: cleanName(file.name),
-          fileName: file.name,
-          type: file.type || 'audio/mpeg',
-          size: file.size,
-          duration,
-          peaks,
-          bpm: null,
-          tags: [],
-          addedAt: Date.now(),
-          blob: new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }),
-        };
-
-        await RiddimDB.put(track);
-        const { blob, ...meta } = track;
-        tracks.push(meta);
+        await importOneFile(file);
         imported++;
       } catch (err) {
         console.error('Import failed:', file.name, err);
@@ -252,10 +289,12 @@
     const list = visibleTracks();
     els.library.innerHTML = '';
     els.emptyState.style.display = tracks.length ? 'none' : '';
+    els.sectionHead.hidden = tracks.length === 0;
+    els.trackCount.textContent = tracks.length === 1 ? '1 track' : `${tracks.length} tracks`;
 
     for (const t of list) {
       const card = document.createElement('article');
-      card.className = 'track-card' + (t.id === currentId ? ' playing' : '');
+      card.className = 'track-card ' + cardColorClass(t.id) + (t.id === currentId ? ' playing' : '');
       card.dataset.id = t.id;
 
       const head = document.createElement('div');
@@ -299,7 +338,7 @@
         const canvas = document.createElement('canvas');
         canvas.className = 'track-wave';
         card.appendChild(canvas);
-        requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, WAVE_COLORS));
+        requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, CARD_WAVE_COLORS));
       }
 
       if (t.tags && t.tags.length) {
@@ -406,8 +445,8 @@
     if (!t) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: t.name,
-      artist: t.bpm ? `${Math.round(t.bpm)} BPM` : 'Riddim',
-      album: 'Riddim drum library',
+      artist: t.bpm ? `${Math.round(t.bpm)} BPM` : 'Riddim Repo',
+      album: 'Riddim Repo',
     });
     navigator.mediaSession.setActionHandler('play', () => audio.play());
     navigator.mediaSession.setActionHandler('pause', () => audio.pause());
@@ -637,6 +676,7 @@
     }
     render();
     requestAnimationFrame(playerFrame);
+    seedSampleTrack();
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(err => {
