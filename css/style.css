@@ -79,9 +79,8 @@ input, select, textarea { font: inherit; border-radius: 0; }
 .splash-icon {
   position: relative;
   z-index: 2;
-  width: 128px; height: 128px;
-  border-radius: 28px;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
+  width: 132px; height: 168px;
+  /* No background/frame — just the speaker, floating on the black splash. */
 }
 
 .splash-rings {
@@ -95,7 +94,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
   width: 140px; height: 140px;
   margin: -70px 0 0 -70px;
   border-radius: 50%;
-  border: 4px solid transparent;
+  border: 9px solid transparent;
   opacity: 0;
   animation: ring-expand 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
@@ -110,9 +109,9 @@ input, select, textarea { font: inherit; border-radius: 0; }
 .ring:nth-child(6) { animation-delay: 2.4s; }
 
 @keyframes ring-expand {
-  0%   { transform: scale(1);   opacity: 0.9; border-width: 5px; }
-  70%  { opacity: 0.35; }
-  100% { transform: scale(3.4); opacity: 0; border-width: 1px; }
+  0%   { transform: scale(1);   opacity: 0.95; border-width: 10px; }
+  70%  { opacity: 0.4; }
+  100% { transform: scale(3.4); opacity: 0; border-width: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -131,7 +130,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
   border-bottom: 2px solid var(--orange);
 }
 
-.brand-row { display: flex; align-items: center; gap: 26px; }
+.brand-row { display: flex; align-items: center; justify-content: space-between; gap: 26px; flex: 1; }
 
 .wordmark {
   font-family: var(--display);
@@ -146,7 +145,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
 
 .spin-badge {
   flex: none;
-  width: 100px; height: 100px;
+  width: 125px; height: 125px;
   border: 2px solid var(--green);
   border-radius: 50%;
   position: relative;
@@ -158,7 +157,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
   letter-spacing: 0.18em; fill: var(--green); text-transform: uppercase;
 }
 .spin-badge::after {
-  content: ""; position: absolute; inset: 37px; border-radius: 50%;
+  content: ""; position: absolute; inset: 46px; border-radius: 50%;
   background: var(--gold);
 }
 
@@ -767,14 +766,14 @@ input, select, textarea { font: inherit; border-radius: 0; }
 
 @media (max-width: 720px) {
   .topbar { flex-direction: column; align-items: flex-start; gap: 18px; padding: 26px 16px 18px; }
+  .brand-row { width: 100%; }
   .topbar-actions { padding-bottom: 0; }
-  .spin-badge { width: 78px; height: 78px; }
-  .spin-badge::after { inset: 28px; }
+  .spin-badge { width: 98px; height: 98px; }
+  .spin-badge::after { inset: 35px; }
   .toolbar { padding: 12px 16px; flex-wrap: wrap; }
   .search { flex: 1 1 100%; order: -1; }
   .btn-favorites { flex: 1 1 auto; justify-content: center; }
   .toolbar .select { flex: 1 1 auto; min-width: 0; }
-  .toolbar .icon-sq { flex: none; }
   .library-grid { grid-template-columns: 1fr; }
   .section-head { padding: 14px 18px; }
   .rate-label, .volume { display: none; }

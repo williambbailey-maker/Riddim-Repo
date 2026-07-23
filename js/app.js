@@ -43,7 +43,6 @@
     favoritesBtn: $('favorites-btn'),
     sort: $('sort'),
     addBtn: $('add-btn'),
-    logoutBtn: $('logout-btn'),
     fileInput: $('file-input'),
     dropOverlay: $('drop-overlay'),
     player: $('player'),
@@ -969,7 +968,6 @@
   function setAuthed(s) {
     session = s;
     els.authScreen.hidden = !!s;
-    els.logoutBtn.hidden = !s;
   }
 
   // Passcode login: the code unlocks a single shared library account.
@@ -997,17 +995,6 @@
     }
     btn.disabled = false;
     btn.textContent = 'Enter';
-  });
-
-  els.logoutBtn.addEventListener('click', async () => {
-    await sb.auth.signOut().catch(() => {});
-    setAuthed(null);
-    tracks = [];
-    currentId = null;
-    audio.pause();
-    audio.removeAttribute('src');
-    els.player.hidden = true;
-    render();
   });
 
   // ---------- Keyboard ----------

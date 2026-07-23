@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="92 38 348 442">
+  <!-- Same scoop-bin artwork as the app icon, cropped tight with a
+       transparent background so it sits directly on the splash — no
+       frame, just the speaker. -->
+  <g stroke="#111111" stroke-width="7" stroke-linejoin="round">
+    <polygon points="180,100 420,100 352,58 112,58" fill="#F1EADA"/>
+    <polygon points="180,100 112,58 112,418 180,460" fill="#E9E1CE"/>
+    <rect x="180" y="100" width="240" height="360" fill="#F8F4EB"/>
+    <rect x="196" y="116" width="208" height="328" fill="none" stroke-width="5"/>
+  </g>
+
+  <g>
+    <circle cx="300" cy="208" r="72" fill="none" stroke="#111111" stroke-width="6"/>
+    <circle cx="300" cy="208" r="62" fill="#111111"/>
+    <circle cx="300" cy="208" r="40" fill="none" stroke="#FDC800" stroke-width="4" opacity="0.9"/>
+    <circle cx="300" cy="208" r="7" fill="#FDC800"/>
+  </g>
+
+  <g>
+    <rect x="196" y="302" width="208" height="142" fill="#111111"/>
+    <path d="M196,302 L404,302 L404,332 C330,338 244,372 196,436 Z" fill="#F8F4EB"/>
+    <path d="M404,332 C330,338 244,372 196,436" fill="none" stroke="#00B25B" stroke-width="5" opacity="0.9"/>
+    <rect x="196" y="302" width="208" height="142" fill="none" stroke="#111111" stroke-width="6"/>
+  </g>
+
+  <g stroke="#111111" stroke-width="3">
+    <rect x="204" y="124" width="18" height="18" fill="#FF4D00"/>
+    <rect x="204" y="142" width="18" height="18" fill="#FDC800"/>
+    <rect x="204" y="160" width="18" height="18" fill="#00B25B"/>
+  </g>
+
+  <g fill="#111111">
+    <polygon points="180,100 208,100 180,128"/>
+    <polygon points="420,100 392,100 420,128"/>
+    <polygon points="420,460 392,460 420,432"/>
+    <polygon points="180,460 208,460 180,432"/>
+    <polygon points="112,58 138,58 112,84"/>
+    <polygon points="112,418 138,438 112,392"/>
+    <polygon points="352,58 324,58 352,80"/>
+  </g>
+</svg>
