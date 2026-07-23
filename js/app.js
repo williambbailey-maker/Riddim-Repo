@@ -625,7 +625,7 @@
       noteRow.className = 'note-row';
       const noteInput = document.createElement('textarea');
       noteInput.className = 'note-input';
-      noteInput.rows = 2;
+      noteInput.rows = 3;
       noteInput.placeholder = 'Write a note…';
       const noteSave = document.createElement('button');
       noteSave.type = 'button';
@@ -636,12 +636,27 @@
       back.append(noteHead, noteList, noteRow);
       back.addEventListener('click', e => e.stopPropagation());
 
+      // Hide the waveform canvas for the duration of the turn — WebKit
+      // renders <canvas> straight through backface-visibility mid-rotation,
+      // which looks like the wrong image flashing during the flip. Also
+      // waits for the card to settle before focusing the note field, so
+      // the keyboard doesn't pop up mid-turn on mobile.
+      let flipTimer = null;
+      function setFlipped(open) {
+        card.classList.add('is-flipping');
+        card.classList.toggle('flipped', open);
+        clearTimeout(flipTimer);
+        flipTimer = setTimeout(() => {
+          card.classList.remove('is-flipping');
+          if (open) noteInput.focus();
+        }, 650);
+      }
+
       noteBtn.addEventListener('click', e => {
         e.stopPropagation();
-        card.classList.add('flipped');
-        noteInput.focus();
+        setFlipped(true);
       });
-      noteClose.addEventListener('click', () => card.classList.remove('flipped'));
+      noteClose.addEventListener('click', () => setFlipped(false));
 
       async function saveNote() {
         const text = noteInput.value.trim();
