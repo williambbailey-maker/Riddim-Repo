@@ -192,23 +192,41 @@ input, select { font: inherit; }
 .select:focus { outline: none; border-color: var(--yellow); }
 .select-small { height: 38px; padding: 0 12px; font-size: 0.875rem; }
 
-/* ---------- Section head ---------- */
+/* ---------- Section head (collapsible) ---------- */
 
 .section-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 14px 24px 4px;
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
 }
 .section-head h2 {
   margin: 0;
   font-size: 1.375rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
+.section-head .chevron {
+  width: 20px;
+  height: 20px;
+  transition: transform 200ms var(--ease);
+}
+.section-head.open .chevron { transform: rotate(90deg); }
+.section-head:hover .section-count { color: var(--fg); }
 .section-count {
   color: var(--muted-fg);
   font-weight: 600;
   font-size: 0.875rem;
+  transition: color 150ms var(--ease);
 }
 
 /* ---------- Library / color-block cards ---------- */
@@ -334,6 +352,25 @@ input, select { font: inherit; }
 }
 
 .track-bpm { font-weight: 800; }
+
+.track-star {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: rgba(6, 0, 0, 0.55);
+  padding: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms var(--ease), color 150ms var(--ease);
+}
+.track-star svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+.track-star:hover { transform: scale(1.15); color: var(--ink); }
+.track-star.starred { color: var(--ink); }
+.track-star.starred svg { fill: var(--ink); }
 
 .track-edit {
   flex: none;
