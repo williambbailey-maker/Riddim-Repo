@@ -27,8 +27,6 @@
     emptyState: $('empty-state'),
     search: $('search'),
     sort: $('sort'),
-    sectionHead: $('section-head'),
-    trackCount: $('track-count'),
     addBtn: $('add-btn'),
     fileInput: $('file-input'),
     dropOverlay: $('drop-overlay'),
@@ -44,9 +42,12 @@
     loopBtn: $('loop-btn'),
     rate: $('rate'),
     volume: $('volume'),
+    catDialog: $('cat-dialog'),
+    catCancel: $('cat-cancel'),
     editDialog: $('edit-dialog'),
     editForm: $('edit-form'),
     editName: $('edit-name'),
+    editCategory: $('edit-category'),
     editBpm: $('edit-bpm'),
     editDelete: $('edit-delete'),
     editCancel: $('edit-cancel'),
@@ -145,6 +146,15 @@
     return 'card-c' + (h % 4);
   }
 
+  // ---------- Categories ----------
+
+  const CATEGORIES = [
+    { key: 'drum', label: 'Drum Tracks' },
+    { key: 'riddim', label: 'Riddims' },
+    { key: 'take', label: 'Takes' },
+  ];
+  const trackCategory = t => t.category || 'drum';
+
   // ---------- Import ----------
 
   const AUDIO_EXT = /\.(wav|mp3|ogg|oga|flac|m4a|aac|aiff?|webm)$/i;
@@ -154,7 +164,7 @@
   }
 
   /** Decode, compute peaks, store in IndexedDB. Returns the track meta. */
-  async function importOneFile(file) {
+  async function importOneFile(file, category) {
     const arrayBuffer = await file.arrayBuffer();
     let duration = 0;
     let peaks = null;
@@ -176,6 +186,7 @@
       peaks,
       bpm: null,
       percussion: false,
+      category: category || 'drum',
       addedAt: Date.now(),
       blob: new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }),
     };
@@ -195,7 +206,7 @@
       if (!res.ok) return;
       const blob = await res.blob();
       const file = new File([blob], 'Zuchinni Dryne.wav', { type: 'audio/wav' });
-      const meta = await importOneFile(file);
+      const meta = await importOneFile(file, 'drum');
       const patched = await RiddimDB.patch(meta.id, { bpm: 65 });
       const idx = tracks.findIndex(t => t.id === meta.id);
       if (idx !== -1) tracks[idx] = patched;
@@ -224,20 +235,36 @@
     }
   }
 
-  async function importFiles(fileList) {
+  let pendingFiles = null;
+  let pendingSkipped = 0;
+
+  /** Step 1: ask what kind of upload this is. */
+  function importFiles(fileList) {
     const files = Array.from(fileList).filter(isAudioFile);
     const skipped = fileList.length - files.length;
     if (!files.length) {
       toast('No audio files found — drop .wav or .mp3 tracks');
       return;
     }
+    pendingFiles = files;
+    pendingSkipped = skipped;
+    els.catDialog.showModal();
+  }
+
+  /** Step 2: import the pending batch under the chosen category. */
+  async function runImport(category) {
+    const files = pendingFiles || [];
+    const skipped = pendingSkipped;
+    pendingFiles = null;
+    pendingSkipped = 0;
+    if (!files.length) return;
 
     toast(`Importing ${files.length} track${files.length > 1 ? 's' : ''}…`);
     let imported = 0;
 
     for (const file of files) {
       try {
-        await importOneFile(file);
+        await importOneFile(file, category);
         imported++;
       } catch (err) {
         console.error('Import failed:', file.name, err);
@@ -251,6 +278,18 @@
             (skipped > 0 ? ` (skipped ${skipped} non-audio)` : ''));
     }
   }
+
+  els.catDialog.querySelectorAll('[data-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      els.catDialog.close();
+      runImport(btn.dataset.cat);
+    });
+  });
+  els.catCancel.addEventListener('click', () => {
+    pendingFiles = null;
+    els.catDialog.close();
+  });
+  els.catDialog.addEventListener('cancel', () => { pendingFiles = null; });
 
   // ---------- Library rendering ----------
 
@@ -277,14 +316,39 @@
     return list;
   }
 
+  /** Tracks in on-screen order: grouped by category, sorted within each. */
+  function displayOrder() {
+    const list = visibleTracks();
+    return CATEGORIES.flatMap(cat => list.filter(t => trackCategory(t) === cat.key));
+  }
+
   function renderLibrary() {
     const list = visibleTracks();
     els.library.innerHTML = '';
     els.emptyState.style.display = tracks.length ? 'none' : '';
-    els.sectionHead.hidden = tracks.length === 0;
-    els.trackCount.textContent = tracks.length === 1 ? '1 track' : `${tracks.length} tracks`;
 
-    for (const t of list) {
+    for (const cat of CATEGORIES) {
+      const group = list.filter(t => trackCategory(t) === cat.key);
+      if (!group.length) continue;
+
+      const head = document.createElement('div');
+      head.className = 'section-head';
+      const title = document.createElement('h2');
+      title.textContent = cat.label;
+      const count = document.createElement('span');
+      count.className = 'section-count';
+      count.textContent = group.length === 1 ? '1 track' : `${group.length} tracks`;
+      head.append(title, count);
+      els.library.appendChild(head);
+
+      const grid = document.createElement('div');
+      grid.className = 'library-grid';
+      for (const t of group) grid.appendChild(buildCard(t));
+      els.library.appendChild(grid);
+    }
+  }
+
+  function buildCard(t) {
       const card = document.createElement('article');
       card.className = 'track-card ' + cardColorClass(t.id) + (t.id === currentId ? ' playing' : '');
       card.dataset.id = t.id;
@@ -366,8 +430,7 @@
       });
       editBtn.addEventListener('click', () => openEdit(t.id));
 
-      els.library.appendChild(card);
-    }
+      return card;
   }
 
   function render() {
@@ -406,7 +469,7 @@
 
   function togglePlay() {
     if (!currentId) {
-      const list = visibleTracks();
+      const list = displayOrder();
       if (list.length) playTrack(list[0].id);
       return;
     }
@@ -415,7 +478,7 @@
   }
 
   function step(direction) {
-    const list = visibleTracks();
+    const list = displayOrder();
     if (!list.length) return;
     const idx = list.findIndex(t => t.id === currentId);
     const next = idx === -1
@@ -515,6 +578,7 @@
     if (!t) return;
     editingId = id;
     els.editName.value = t.name;
+    els.editCategory.value = trackCategory(t);
     els.editBpm.value = t.bpm || '';
     tapTimes.length = 0;
     els.tapTempo.textContent = 'Tap Tempo';
@@ -525,9 +589,10 @@
     if (!editingId) return;
     const name = els.editName.value.trim();
     const bpm = parseFloat(els.editBpm.value) || null;
+    const category = els.editCategory.value;
 
     try {
-      const meta = await RiddimDB.patch(editingId, { name, bpm });
+      const meta = await RiddimDB.patch(editingId, { name, bpm, category });
       const idx = tracks.findIndex(t => t.id === editingId);
       if (idx !== -1) tracks[idx] = meta;
       render();
@@ -635,7 +700,7 @@
 
   window.addEventListener('keydown', event => {
     const inField = /^(input|select|textarea)$/i.test(event.target.tagName) ||
-                    els.editDialog.open;
+                    els.editDialog.open || els.catDialog.open;
     if (inField) return;
     if (event.code === 'Space') {
       event.preventDefault();

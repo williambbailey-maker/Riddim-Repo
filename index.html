@@ -37,11 +37,6 @@
     </select>
   </section>
 
-  <div class="section-head" id="section-head" hidden>
-    <h2>Your Grooves</h2>
-    <span id="track-count" class="section-count"></span>
-  </div>
-
   <main id="library" class="library" aria-live="polite"></main>
 
   <div id="empty-state" class="empty-state">
@@ -101,12 +96,34 @@
     </div>
   </footer>
 
+  <!-- Category picker for new uploads -->
+  <dialog id="cat-dialog" class="dialog cat-dialog">
+    <h3>What are you adding?</h3>
+    <p class="cat-sub">These land in their own section of the library.</p>
+    <div class="cat-options">
+      <button type="button" data-cat="drum" class="btn-pill btn-yellow">Drum Track</button>
+      <button type="button" data-cat="riddim" class="btn-pill btn-orange">Riddim</button>
+      <button type="button" data-cat="take" class="btn-pill btn-green">Take</button>
+    </div>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button type="button" id="cat-cancel" class="btn-pill btn-ghost">Cancel</button>
+    </div>
+  </dialog>
+
   <!-- Edit dialog -->
   <dialog id="edit-dialog" class="dialog">
     <form method="dialog" id="edit-form">
       <h3>Edit Track</h3>
       <label>Name
         <input id="edit-name" type="text" required maxlength="120" autocomplete="off">
+      </label>
+      <label>Type
+        <select id="edit-category" class="select edit-select">
+          <option value="drum">Drum Track</option>
+          <option value="riddim">Riddim</option>
+          <option value="take">Take</option>
+        </select>
       </label>
       <label>BPM
         <div class="bpm-row">
