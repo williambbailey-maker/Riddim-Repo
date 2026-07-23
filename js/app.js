@@ -45,6 +45,8 @@
     fileInput: $('file-input'),
     dropOverlay: $('drop-overlay'),
     player: $('player'),
+    playerMarquee: $('player-marquee'),
+    marqueeText: $('marquee-text'),
     playerWave: $('player-wave'),
     timeCurrent: $('time-current'),
     timeTotal: $('time-total'),
@@ -240,26 +242,19 @@
     }
   }
 
-  const css = getComputedStyle(document.documentElement);
-  const WAVE_COLORS = {
-    base: css.getPropertyValue('--wave').trim() || '#3A3230',
-    played: css.getPropertyValue('--orange').trim() || '#EC5620',
-  };
-  const CARD_WAVE_COLORS = { base: 'rgba(6, 0, 0, 0.35)', played: 'rgba(6, 0, 0, 0.35)' };
-
-  function cardColorClass(id) {
-    let h = 0;
-    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    return 'card-c' + (h % 4);
-  }
+  const WAVE_COLORS = { base: 'rgba(255,255,255,0.25)', played: '#FF4D00' };
+  // Playing cards are color-filled, so their bars go black.
+  const PLAYING_WAVE = { base: 'rgba(0,0,0,0.4)', played: 'rgba(0,0,0,0.4)' };
 
   // ---------- Categories ----------
 
+  // Each category wears a Rasta color: Drums gold, Riddims orange, Takes green.
   const CATEGORIES = [
-    { key: 'drum', label: 'Drums' },
-    { key: 'riddim', label: 'Riddims' },
-    { key: 'take', label: 'Takes' },
+    { key: 'drum', label: 'Drums', sec: 'sec-gold', cat: 'cat-gold', wave: 'rgba(253,200,0,0.5)' },
+    { key: 'riddim', label: 'Riddims', sec: 'sec-orange', cat: 'cat-orange', wave: 'rgba(255,77,0,0.5)' },
+    { key: 'take', label: 'Takes', sec: 'sec-green', cat: 'cat-green', wave: 'rgba(0,178,91,0.5)' },
   ];
+  const catMeta = t => CATEGORIES.find(c => c.key === trackCategory(t)) || CATEGORIES[0];
   const trackCategory = t => t.category || 'drum';
 
   // Sections start collapsed; open state is remembered per device.
@@ -453,21 +448,21 @@
 
       const head = document.createElement('button');
       head.type = 'button';
-      head.className = 'section-head' + (isOpen ? ' open' : '');
+      head.className = 'section-head ' + cat.sec + (isOpen ? ' open' : '');
       head.setAttribute('aria-expanded', String(isOpen));
       const title = document.createElement('h2');
-      title.innerHTML = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+      title.innerHTML = '<span class="chev"></span>';
       title.appendChild(document.createTextNode(cat.label));
       const count = document.createElement('span');
       count.className = 'section-count';
-      count.textContent = group.length === 1 ? '1 track' : `${group.length} tracks`;
+      count.textContent = String(group.length).padStart(2, '0') + ' TRK';
       head.append(title, count);
       head.addEventListener('click', () => toggleSection(cat.key));
       els.library.appendChild(head);
 
       if (isOpen) {
         const grid = document.createElement('div');
-        grid.className = 'library-grid';
+        grid.className = 'library-grid ' + cat.cat;
         for (const t of group) grid.appendChild(buildCard(t));
         els.library.appendChild(grid);
       }
@@ -475,8 +470,9 @@
   }
 
   function buildCard(t) {
+      const meta = catMeta(t);
       const card = document.createElement('article');
-      card.className = 'track-card ' + cardColorClass(t.id) + (t.id === currentId ? ' playing' : '');
+      card.className = 'track-card ' + meta.cat + (t.id === currentId ? ' playing' : '');
       card.dataset.id = t.id;
 
       const front = document.createElement('div');
@@ -537,15 +533,23 @@
       editBtn.title = 'Edit name, type, and BPM';
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
-      head.append(playBtn, titles, starBtn, editBtn);
+      const actionsRow = document.createElement('div');
+      actionsRow.className = 'track-actions-row';
+      actionsRow.appendChild(starBtn);
+
+      head.append(playBtn, titles, actionsRow);
       front.appendChild(head);
 
       if (t.peaks) {
         const canvas = document.createElement('canvas');
         canvas.className = 'track-wave';
         front.appendChild(canvas);
-        requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, CARD_WAVE_COLORS));
+        const waveColors = t.id === currentId ? PLAYING_WAVE : { base: meta.wave, played: meta.wave };
+        requestAnimationFrame(() => drawWave(canvas, t.peaks, 0, waveColors));
       }
+
+      const foot = document.createElement('div');
+      foot.className = 'card-foot';
 
       // Percussion flag only applies to drum tracks.
       if (trackCategory(t) === 'drum') {
@@ -567,8 +571,12 @@
             toast('Could not save');
           }
         });
-        front.appendChild(percLabel);
+        foot.appendChild(percLabel);
+      } else {
+        foot.appendChild(document.createElement('span'));
       }
+      foot.appendChild(editBtn);
+      front.appendChild(foot);
 
       // Pencil: flip the card over to its notes side.
       const noteBtn = document.createElement('button');
@@ -577,7 +585,7 @@
       noteBtn.title = 'Notes';
       noteBtn.setAttribute('aria-label', 'Notes for ' + t.name);
       noteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>';
-      front.appendChild(noteBtn);
+      actionsRow.appendChild(noteBtn);
 
       // Back of the card: saved notes + entry box.
       const back = document.createElement('div');
@@ -708,6 +716,7 @@
 
     els.player.hidden = false;
     els.timeTotal.textContent = formatTime(t.duration || audio.duration);
+    updateMarquee();
     updateMediaSession();
     render();
   }
@@ -730,6 +739,15 @@
       ? (direction > 0 ? list[0] : list[list.length - 1])
       : list[(idx + direction + list.length) % list.length];
     playTrack(next.id);
+  }
+
+  function updateMarquee() {
+    const t = currentTrack();
+    if (!t) return;
+    const bits = ['NOW PLAYING', t.name.toUpperCase()];
+    if (t.bpm) bits.push(Math.round(t.bpm) + ' BPM');
+    bits.push('LOOP ' + (audio.loop ? 'ON' : 'OFF'));
+    els.marqueeText.textContent = (bits.join(' — ') + ' — ').repeat(6);
   }
 
   function updateMediaSession() {
@@ -767,8 +785,14 @@
     }
   }
 
-  audio.addEventListener('play', syncPlayButtons);
-  audio.addEventListener('pause', syncPlayButtons);
+  audio.addEventListener('play', () => {
+    syncPlayButtons();
+    els.playerMarquee.classList.remove('paused');
+  });
+  audio.addEventListener('pause', () => {
+    syncPlayButtons();
+    els.playerMarquee.classList.add('paused');
+  });
   audio.addEventListener('ended', () => step(1));
 
   els.playBtn.addEventListener('click', togglePlay);
@@ -778,6 +802,7 @@
   els.loopBtn.addEventListener('click', () => {
     audio.loop = !audio.loop;
     els.loopBtn.classList.toggle('toggled', audio.loop);
+    updateMarquee();
     toast(audio.loop ? 'Loop on — groove locked in' : 'Loop off');
   });
 

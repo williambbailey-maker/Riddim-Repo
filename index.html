@@ -3,50 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#060000">
+  <meta name="theme-color" content="#000000">
   <meta name="description" content="Riddim Repo — a drum track library. Drop in wav/mp3 drum loops and get a groove going.">
   <title>Riddim Repo — Drum Track Library</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1 class="wordmark"><span>R</span><span>i</span><span>d</span><span>d</span><span>i</span><span>m</span>&nbsp;<span>R</span><span>e</span><span>p</span><span>o</span></h1>
+    <div class="brand-row">
+      <h1 class="wordmark"><span class="w-riddim">Riddim</span><br><span class="w-repo">Repo</span></h1>
+      <div class="spin-badge" aria-hidden="true">
+        <svg viewBox="0 0 108 108">
+          <defs><path id="circ" d="M54,54 m-42,0 a42,42 0 1,1 84,0 a42,42 0 1,1 -84,0"/></defs>
+          <text><textPath href="#circ">★ GROOVE LIBRARY ★ EST. 2026 ★ 45 RPM ★ DUNWELL.CO </textPath></text>
+        </svg>
+      </div>
+    </div>
     <div class="topbar-actions">
-      <button id="search-btn" class="icon-pill" type="button" title="Search" aria-label="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <button id="search-btn" class="icon-sq" type="button" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </button>
-      <button id="add-btn" class="btn-pill btn-orange" type="button">+ Add Tracks</button>
-      <button id="logout-btn" class="icon-pill" type="button" title="Log out" aria-label="Log out" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>
+      <button id="add-btn" class="btn-brutal" type="button">+ Add Tracks</button>
     </div>
     <input id="file-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.aiff" multiple hidden>
   </header>
 
   <section class="toolbar" id="toolbar" hidden>
-    <input id="search" class="search" type="search" placeholder="Search tracks" autocomplete="off">
+    <input id="search" class="search" type="search" placeholder="SEARCH TRACKS" autocomplete="off">
     <select id="sort" class="select" title="Sort library">
       <option value="added-desc">Newest first</option>
       <option value="added-asc">Oldest first</option>
       <option value="bpm-asc">BPM low→high</option>
       <option value="bpm-desc">BPM high→low</option>
     </select>
+    <button id="logout-btn" class="icon-sq" type="button" title="Lock the app" aria-label="Lock the app" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="0"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
   </section>
 
   <main id="library" class="library" aria-live="polite"></main>
 
   <div id="empty-state" class="empty-state" style="display:none">
     <div class="empty-card">
-      <span class="empty-badge">Getting started</span>
+      <span class="empty-badge">Getting Started</span>
       <h2>Drop Your<br>Drums Here</h2>
-      <p>Drag <strong>.wav</strong> or <strong>.mp3</strong> drum tracks anywhere on this page, or hit
-         <strong>+ Add Tracks</strong>. They upload to your cloud library — loop one up and jam over it
+      <p>Drag <strong>.WAV</strong> or <strong>.MP3</strong> drum tracks anywhere on this page, or hit
+         <strong>+ ADD TRACKS</strong>. They upload to your cloud library — loop one up and jam over it
          from any device.</p>
     </div>
   </div>
@@ -60,50 +65,47 @@
 
   <!-- Player bar -->
   <footer id="player" class="player" hidden>
+    <div class="player-marquee" id="player-marquee"><span id="marquee-text">RIDDIM REPO — </span></div>
     <div class="player-wave-wrap">
       <canvas id="player-wave" class="player-wave"></canvas>
-      <div class="player-times">
-        <span id="time-current">0:00</span>
-        <span id="time-total">0:00</span>
-      </div>
+    </div>
+    <div class="player-times">
+      <span id="time-current">0:00</span>
+      <span id="time-total">0:00</span>
     </div>
     <div class="player-controls">
-      <div class="player-buttons">
-        <button id="prev-btn" class="skip-btn" title="Previous track" aria-label="Previous track">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20" fill="currentColor" stroke="none"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
-        </button>
-        <button id="play-btn" class="play-btn" title="Play/Pause (Space)" aria-label="Play or pause">▶</button>
-        <button id="next-btn" class="skip-btn" title="Next track" aria-label="Next track">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-        </button>
-        <button id="loop-btn" class="loop-btn toggled" title="Loop (on by default — keep the groove going)" aria-label="Toggle loop">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
-        </button>
-      </div>
-      <div class="player-extras">
-        <label class="rate-label" title="Playback speed">
-          <select id="rate" class="select select-small">
-            <option value="0.75">0.75×</option>
-            <option value="0.9">0.9×</option>
-            <option value="1" selected>1×</option>
-            <option value="1.1">1.1×</option>
-            <option value="1.25">1.25×</option>
-          </select>
-        </label>
-        <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="1" title="Volume">
-      </div>
+      <button id="prev-btn" class="pbtn" title="Previous track" aria-label="Previous track">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20" fill="currentColor" stroke="none"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+      </button>
+      <button id="play-btn" class="pbtn p-play" title="Play/Pause (Space)" aria-label="Play or pause">▶</button>
+      <button id="next-btn" class="pbtn" title="Next track" aria-label="Next track">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+      <button id="loop-btn" class="pbtn loop-btn toggled" title="Loop (on by default — keep the groove going)" aria-label="Toggle loop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <label class="rate-label" title="Playback speed">
+        <select id="rate" class="select select-small">
+          <option value="0.75">0.75×</option>
+          <option value="0.9">0.9×</option>
+          <option value="1" selected>1×</option>
+          <option value="1.1">1.1×</option>
+          <option value="1.25">1.25×</option>
+        </select>
+      </label>
+      <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="1" title="Volume">
     </div>
   </footer>
 
   <!-- Login screen -->
   <div id="auth-screen" class="auth-screen" hidden>
     <div class="auth-card">
-      <h2 class="wordmark auth-logo"><span>R</span><span>i</span><span>d</span><span>d</span><span>i</span><span>m</span>&nbsp;<span>R</span><span>e</span><span>p</span><span>o</span></h2>
+      <h2 class="wordmark auth-logo"><span class="w-riddim">Riddim</span><br><span class="w-repo">Repo</span></h2>
       <p class="auth-sub">Enter the passcode</p>
       <form id="auth-form">
         <input id="auth-passcode" class="auth-passcode" type="password" inputmode="numeric" pattern="[0-9]*"
                placeholder="•••" maxlength="8" required autocomplete="off">
-        <button class="btn-pill btn-orange auth-submit" type="submit">Enter</button>
+        <button class="btn-brutal auth-submit" type="submit">Enter</button>
         <div id="auth-error" class="auth-error" hidden></div>
       </form>
     </div>
@@ -126,14 +128,14 @@
       <label>BPM
         <div class="bpm-row">
           <input id="edit-bpm" type="number" min="20" max="400" step="0.1" placeholder="92" autocomplete="off">
-          <button type="button" id="tap-tempo" class="btn-pill btn-yellow" title="Tap along with the track to set BPM">Tap Tempo</button>
+          <button type="button" id="tap-tempo" class="btn-brutal btn-gold" title="Tap along with the track to set BPM">Tap Tempo</button>
         </div>
       </label>
       <div class="dialog-actions">
-        <button type="button" id="edit-delete" class="btn-pill btn-outline-danger">Delete</button>
+        <button type="button" id="edit-delete" class="btn-brutal btn-outline-danger">Delete</button>
         <span class="spacer"></span>
-        <button type="button" id="edit-cancel" class="btn-pill btn-ghost">Cancel</button>
-        <button type="submit" class="btn-pill btn-orange">Save</button>
+        <button type="button" id="edit-cancel" class="btn-brutal btn-ghost">Cancel</button>
+        <button type="submit" class="btn-brutal">Save</button>
       </div>
     </form>
   </dialog>

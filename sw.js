@@ -2,7 +2,7 @@
    opens instantly and works offline. Audio blobs are cached in
    IndexedDB, so they never touch this cache. */
 
-const CACHE = 'riddim-v11';
+const CACHE = 'riddim-v12';
 
 const SHELL = [
   './',
@@ -12,6 +12,11 @@ const SHELL = [
   './js/app.js',
   './js/config.js',
   './js/vendor/supabase.js',
+  './fonts/archivo-black-latin-400-normal.woff2',
+  './fonts/space-mono-latin-400-normal.woff2',
+  './fonts/space-mono-latin-700-normal.woff2',
+  './fonts/inter-latin-400-normal.woff2',
+  './fonts/inter-latin-500-normal.woff2',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
