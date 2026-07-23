@@ -2,7 +2,7 @@
    opens instantly and works offline. Audio blobs are cached in
    IndexedDB, so they never touch this cache. */
 
-const CACHE = 'riddim-v16';
+const CACHE = 'riddim-v17';
 
 const SHELL = [
   './',
@@ -21,7 +21,7 @@ const SHELL = [
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './apple-touch-icon.png',
+  './apple-touch-icon-v2.png',
 ];
 
 self.addEventListener('install', event => {
