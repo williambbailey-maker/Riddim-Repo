@@ -469,32 +469,13 @@ input, select { font: inherit; }
 }
 
 .player-controls {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  position: relative;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   padding-top: 6px;
 }
-
-.player-now { min-width: 0; }
-
-.player-title {
-  font-weight: 700;
-  font-size: 1.0625rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.player-meta {
-  color: var(--muted-fg);
-  font-weight: 500;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.player-meta .track-bpm { color: var(--yellow); margin-right: 10px; }
 
 .player-buttons {
   display: flex;
@@ -554,10 +535,13 @@ input, select { font: inherit; }
 }
 
 .player-extras {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 14px;
-  justify-content: flex-end;
 }
 
 .volume {
@@ -690,7 +674,6 @@ input, select { font: inherit; }
   .library .section-head { padding-left: 0; padding-right: 0; }
   .library-grid { grid-template-columns: 1fr; }
   .player { padding-left: 14px; padding-right: 14px; }
-  .player-controls { grid-template-columns: 1fr auto; }
   .player-extras { display: none; }
   .drop-overlay-inner { padding: 40px 32px; }
   :root { --player-h: 136px; }
