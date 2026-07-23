@@ -121,6 +121,7 @@
       bpm: row.bpm,
       category: row.category || 'drum',
       percussion: !!row.percussion,
+      favorite: !!row.favorite,
       notes: row.notes || [],
       peaks: row.peaks,
       addedAt: Date.parse(row.added_at),
@@ -152,6 +153,7 @@
     if ('bpm' in fields) row.bpm = fields.bpm;
     if ('category' in fields) row.category = fields.category;
     if ('percussion' in fields) row.percussion = fields.percussion;
+    if ('favorite' in fields) row.favorite = fields.favorite;
     if ('notes' in fields) row.notes = fields.notes;
     const { error } = await sb.from('riddim_tracks').update(row).eq('id', id);
     if (error) throw error;
@@ -259,6 +261,16 @@
     { key: 'take', label: 'Takes' },
   ];
   const trackCategory = t => t.category || 'drum';
+
+  // Sections start collapsed; open state is remembered per device.
+  const OPEN_SECTIONS_KEY = 'riddim-open-sections-v1';
+  let openSections = {};
+  try { openSections = JSON.parse(localStorage.getItem(OPEN_SECTIONS_KEY) || '{}'); } catch {}
+  function toggleSection(key) {
+    openSections[key] = !openSections[key];
+    localStorage.setItem(OPEN_SECTIONS_KEY, JSON.stringify(openSections));
+    renderLibrary();
+  }
 
   // ---------- Import ----------
 
@@ -429,24 +441,36 @@
     els.library.innerHTML = '';
     els.emptyState.style.display = (session && tracks.length === 0) ? '' : 'none';
 
+    const searching = els.search.value.trim().length > 0;
+
     for (const cat of CATEGORIES) {
       const group = list.filter(t => trackCategory(t) === cat.key);
       if (!group.length) continue;
+      // Favorites float to the top of their section.
+      group.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
 
-      const head = document.createElement('div');
-      head.className = 'section-head';
+      const isOpen = searching || !!openSections[cat.key];
+
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'section-head' + (isOpen ? ' open' : '');
+      head.setAttribute('aria-expanded', String(isOpen));
       const title = document.createElement('h2');
-      title.textContent = cat.label;
+      title.innerHTML = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+      title.appendChild(document.createTextNode(cat.label));
       const count = document.createElement('span');
       count.className = 'section-count';
       count.textContent = group.length === 1 ? '1 track' : `${group.length} tracks`;
       head.append(title, count);
+      head.addEventListener('click', () => toggleSection(cat.key));
       els.library.appendChild(head);
 
-      const grid = document.createElement('div');
-      grid.className = 'library-grid';
-      for (const t of group) grid.appendChild(buildCard(t));
-      els.library.appendChild(grid);
+      if (isOpen) {
+        const grid = document.createElement('div');
+        grid.className = 'library-grid';
+        for (const t of group) grid.appendChild(buildCard(t));
+        els.library.appendChild(grid);
+      }
     }
   }
 
@@ -486,6 +510,26 @@
       sub.appendChild(date);
       titles.append(name, sub);
 
+      const starBtn = document.createElement('button');
+      starBtn.type = 'button';
+      starBtn.className = 'track-star' + (t.favorite ? ' starred' : '');
+      starBtn.title = t.favorite ? 'Unfavorite' : 'Favorite';
+      starBtn.setAttribute('aria-label', 'Favorite ' + t.name);
+      starBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+      starBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const next = !t.favorite;
+        starBtn.classList.toggle('starred', next);
+        try {
+          await patchTrack(t.id, { favorite: next });
+          t.favorite = next;
+        } catch (err) {
+          console.error(err);
+          starBtn.classList.toggle('starred', !next);
+          toast('Could not save');
+        }
+      });
+
       const editBtn = document.createElement('button');
       editBtn.type = 'button';
       editBtn.className = 'track-edit';
@@ -493,7 +537,7 @@
       editBtn.title = 'Edit name, type, and BPM';
       editBtn.setAttribute('aria-label', 'Edit ' + t.name);
 
-      head.append(playBtn, titles, editBtn);
+      head.append(playBtn, titles, starBtn, editBtn);
       front.appendChild(head);
 
       if (t.peaks) {
@@ -615,7 +659,7 @@
 
       card.addEventListener('click', event => {
         if (card.classList.contains('flipped')) return;
-        if (event.target === editBtn || event.target === noteBtn) return;
+        if (event.target === editBtn || event.target === noteBtn || event.target === starBtn) return;
         if (t.id === currentId) {
           togglePlay();
         } else {
