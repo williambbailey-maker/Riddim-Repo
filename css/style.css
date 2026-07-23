@@ -175,7 +175,6 @@ input, select, textarea { font: inherit; border-radius: 0; }
   border: none;
   border-bottom: 2px solid currentColor;
   cursor: pointer;
-  transform: skewY(-1.2deg);
   text-align: left;
   user-select: none;
 }
