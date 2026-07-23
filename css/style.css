@@ -79,7 +79,7 @@ input, select { font: inherit; }
 
 .wordmark {
   margin: 0;
-  font-size: clamp(2.6rem, 7.15vw, 4.25rem);
+  font-size: clamp(3.1rem, 8.6vw, 5.1rem);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.01em;
@@ -640,20 +640,16 @@ input, select { font: inherit; }
 }
 
 .player-controls {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  justify-content: space-evenly;
   padding-top: 6px;
 }
 
-.player-buttons {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-}
+/* Flatten the control groups so every control participates in the
+   even distribution across the bar. */
+.player-buttons,
+.player-extras { display: contents; }
 
 .skip-btn {
   width: 44px;
@@ -703,16 +699,6 @@ input, select { font: inherit; }
   background: var(--green);
   border-color: var(--green);
   color: var(--fg);
-}
-
-.player-extras {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 14px;
 }
 
 .volume {
@@ -894,7 +880,7 @@ input, select { font: inherit; }
   .library .section-head { padding-left: 0; padding-right: 0; }
   .library-grid { grid-template-columns: 1fr; }
   .player { padding-left: 14px; padding-right: 14px; }
-  .player-extras { display: none; }
+  .rate-label, .volume { display: none; }
   .drop-overlay-inner { padding: 40px 32px; }
   :root { --player-h: 136px; }
 }
