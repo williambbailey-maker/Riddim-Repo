@@ -307,7 +307,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
   position: relative;
   background: var(--black);
   cursor: pointer;
-  min-height: 300px;
+  min-height: 220px;
   transform-style: preserve-3d;
   transform: perspective(1600px) rotateY(0deg);
   transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1), background .15s ease;
@@ -319,10 +319,12 @@ input, select, textarea { font: inherit; border-radius: 0; }
 .track-card:not(.flipped):hover { background: #140F00; }
 .track-card.flipped { transform: perspective(1600px) rotateY(180deg); }
 
-/* WebKit renders <canvas> through backface-visibility during the
-   rotation itself (not just at rest), which looks like the wrong
-   image flashing mid-flip. Hide it for the duration of the turn. */
-.track-card.is-flipping .track-wave { visibility: hidden; }
+/* WebKit renders front-face content (canvas especially, but buttons
+   and text too) straight through backface-visibility during the
+   rotation itself (not just at rest), which looks like the front
+   bleeding through the back mid-flip. Hide the whole front face for
+   the duration of the turn. */
+.track-card.is-flipping .card-front { visibility: hidden; }
 
 .track-card.playing { color: var(--black); }
 .track-card.playing.cat-gold { background: var(--gold); }
@@ -544,14 +546,13 @@ input, select, textarea { font: inherit; border-radius: 0; }
 .note-save {
   flex: none;
   border: 2px solid currentColor;
-  background: currentColor;
-  color: var(--black);
+  background: none;
+  color: currentColor;
   padding: 0 16px;
   font-family: var(--mono); font-weight: 700; font-size: 11px; text-transform: uppercase;
   transition: transform .15s ease;
 }
 .note-save:hover { transform: scale(1.05); }
-.track-card.playing .note-save { color: var(--white); }
 
 /* ---------- Empty state ---------- */
 
@@ -775,7 +776,7 @@ input, select, textarea { font: inherit; border-radius: 0; }
   .topbar { flex-direction: column; align-items: flex-start; gap: 18px; padding: 26px 16px 18px; }
   .brand-row { width: 100%; }
   .topbar-actions { padding-bottom: 0; }
-  .spin-badge { width: 98px; height: 98px; }
+  .spin-badge { width: 98px; height: 98px; margin-top: 22px; }
   .spin-badge::after { inset: 35px; }
   .toolbar { padding: 12px 16px; flex-wrap: wrap; }
   .search { flex: 1 1 100%; order: -1; }
